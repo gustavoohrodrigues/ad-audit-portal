@@ -26,6 +26,8 @@ settings = get_settings()
 VALID_CHANNELS = {"email", "teams", "slack", "discord", "winrm"}
 # sanitização: remove caracteres de controle e limita tamanho
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+# hostname/FQDN/IP válido (evita injeção no alvo do WinRM)
+_HOST_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,253}[a-zA-Z0-9])?$")
 
 
 def _now() -> datetime:
@@ -148,8 +150,13 @@ def deliver(
         elif channel == "winrm":
             if not settings.message_winrm_enabled:
                 return DeliveryResult(False, "WinRM msg desabilitado", cid)
-            host = (target or "").lower()
-            if host not in winrm_allowed_hosts():
+            host = (target or "").strip().lower()
+            if not host:
+                return DeliveryResult(False, "Host de destino é obrigatório", cid)
+            if not _HOST_RE.match(host):
+                return DeliveryResult(False, "Host de destino inválido", cid)
+            # allowlist só é exigida se MESSAGE_WINRM_ALLOW_ANY_HOST=false
+            if not settings.message_winrm_allow_any_host and host not in winrm_allowed_hosts():
                 return DeliveryResult(False, f"Host '{target}' não está na allowlist", cid)
             try:
                 import winrm  # noqa: F401

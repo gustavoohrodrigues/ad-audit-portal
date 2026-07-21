@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Index
+from sqlalchemy import BigInteger, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
 
@@ -39,7 +39,10 @@ class NormalizedEvent(SQLModel, table=True):
     event_time_utc: datetime = Field(index=True)
     ingested_at: datetime = Field(default_factory=_utcnow)
 
-    event_record_id: Optional[int] = Field(default=None)
+    # EventRecordID do Windows pode ser muito grande (bilhões) -> BIGINT
+    event_record_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
     event_id: int = Field(index=True)
     event_type: EventType = Field(default=EventType.other)
     severity: Severity = Field(default=Severity.info)

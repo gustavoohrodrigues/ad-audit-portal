@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Index
+from sqlalchemy import BigInteger, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel
 
@@ -51,7 +51,10 @@ class CollectionCheckpoint(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     source: str = Field(index=True)
     channel: str = Field(default="Security")
-    last_event_record_id: Optional[int] = None
+    # EventRecordID do Windows pode ser muito grande -> BIGINT
+    last_event_record_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
     last_event_time_utc: Optional[datetime] = None
     bookmark: Optional[str] = None  # XML bookmark WEF/EventLog
     updated_at: datetime = Field(default_factory=_utcnow)

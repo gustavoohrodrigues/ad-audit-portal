@@ -198,6 +198,7 @@ class Settings(BaseSettings):
     google_chat_enabled: bool = True
     message_winrm_enabled: bool = False
     message_winrm_allowed_hosts: str = ""
+    message_winrm_allow_any_host: bool = False
     message_winrm_timeout_seconds: int = 10
     password_expiry_notice_days: str = "14,7,3,1"
     password_expiry_notification_channel: str = "email"
