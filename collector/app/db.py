@@ -1,0 +1,149 @@
+"""Persistência do collector: inserção idempotente + checkpoint por fonte.
+
+A deduplicação usa o índice único (domain_controller, event_record_id, event_id)
+via ``ON CONFLICT DO NOTHING`` — garante que reentregas de eventos (comuns em
+WEF) não gerem duplicatas.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.config import config
+
+engine = create_async_engine(config.database_url, pool_pre_ping=True)
+
+_INSERT = text(
+    """
+    INSERT INTO normalized_events (
+        event_time_utc, ingested_at, event_record_id, event_id, event_type,
+        severity, risk_score, domain, domain_controller, target_username,
+        target_upn, target_sid, actor_username, actor_domain, actor_sid,
+        caller_computer, source_host, source_ip, logon_id, workstation_name,
+        authentication_package, status_code, failure_reason, collector_source,
+        correlation_id, raw_event_json, is_privileged_target, is_critical_account,
+        created_at, updated_at
+    ) VALUES (
+        :event_time_utc, :ingested_at, :event_record_id, :event_id, :event_type,
+        :severity, :risk_score, :domain, :domain_controller, :target_username,
+        :target_upn, :target_sid, :actor_username, :actor_domain, :actor_sid,
+        :caller_computer, :source_host, :source_ip, :logon_id, :workstation_name,
+        :authentication_package, :status_code, :failure_reason, :collector_source,
+        :correlation_id, CAST(:raw_event_json AS JSONB), :is_privileged_target,
+        :is_critical_account, :created_at, :updated_at
+    )
+    ON CONFLICT (domain_controller, event_record_id, event_id) DO NOTHING
+    RETURNING id
+    """
+)
+
+_CHECKPOINT_UPSERT = text(
+    """
+    INSERT INTO collection_checkpoints (source, channel, last_event_record_id,
+        last_event_time_utc, bookmark, updated_at)
+    VALUES (:source, :channel, :rec_id, :evt_time, :bookmark, :updated_at)
+    ON CONFLICT (source, channel) DO UPDATE SET
+        last_event_record_id = GREATEST(
+            COALESCE(collection_checkpoints.last_event_record_id, 0),
+            EXCLUDED.last_event_record_id),
+        last_event_time_utc = EXCLUDED.last_event_time_utc,
+        bookmark = EXCLUDED.bookmark,
+        updated_at = EXCLUDED.updated_at
+    """
+)
+
+_SOURCE_STATS = text(
+    """
+    UPDATE event_sources
+    SET events_ingested = events_ingested + :n,
+        errors_count = errors_count + :err,
+        last_event_at = :last_event,
+        last_heartbeat_at = :hb,
+        status = :status,
+        updated_at = :hb
+    WHERE name = :name
+    """
+)
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+async def insert_events(rows: list[dict[str, Any]]) -> int:
+    """Insere eventos normalizados; retorna quantos foram efetivamente gravados."""
+    import json
+
+    inserted = 0
+    now = _now()
+    async with engine.begin() as conn:
+        for r in rows:
+            params = {
+                "ingested_at": now,
+                "severity": r.get("severity", "info"),
+                "risk_score": r.get("risk_score", 0),
+                "source_host": r.get("source_host"),
+                "correlation_id": r.get("correlation_id"),
+                "is_critical_account": r.get("is_critical_account", False),
+                "created_at": now,
+                "updated_at": now,
+                **r,
+                "raw_event_json": json.dumps(r.get("raw_event_json", {}), default=str),
+            }
+            params.setdefault("event_record_id", None)
+            result = await conn.execute(_INSERT, params)
+            if result.first() is not None:
+                inserted += 1
+    return inserted
+
+
+async def update_checkpoint(
+    source: str, channel: str, rec_id: int | None, evt_time: datetime | None,
+    bookmark: str | None = None,
+) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(
+            _CHECKPOINT_UPSERT,
+            {
+                "source": source,
+                "channel": channel,
+                "rec_id": rec_id or 0,
+                "evt_time": evt_time,
+                "bookmark": bookmark,
+                "updated_at": _now(),
+            },
+        )
+
+
+async def update_source_stats(
+    name: str, n: int, errors: int, last_event: datetime | None, status: str
+) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(
+            _SOURCE_STATS,
+            {
+                "name": name,
+                "n": n,
+                "err": errors,
+                "last_event": last_event,
+                "hb": _now(),
+                "status": status,
+            },
+        )
+
+
+async def get_checkpoint(source: str, channel: str = "Security") -> dict | None:
+    async with engine.connect() as conn:
+        row = (
+            await conn.execute(
+                text(
+                    "SELECT last_event_record_id, bookmark FROM collection_checkpoints "
+                    "WHERE source=:s AND channel=:c"
+                ),
+                {"s": source, "c": channel},
+            )
+        ).first()
+    return {"last_record_id": row[0], "bookmark": row[1]} if row else None

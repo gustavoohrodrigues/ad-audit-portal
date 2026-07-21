@@ -1,0 +1,32 @@
+# API / framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Banco de dados
+sqlmodel==0.0.22
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+psycopg[binary,pool]==3.2.3
+
+# Redis
+redis==5.2.1
+
+# LDAP (somente leitura, LDAPS)
+ldap3==2.9.1
+
+# Segurança / JWT / MFA
+pyjwt==2.10.1
+pyotp==2.9.0
+segno==1.6.1
+
+# WinRM (consulta ao vivo de origem de bloqueio — opcional)
+pywinrm==0.5.0
+
+# Observabilidade
+prometheus-client==0.21.1
+orjson==3.10.13
+
+# HTTP client (integrações: GLPI, webhook)
+httpx==0.28.1

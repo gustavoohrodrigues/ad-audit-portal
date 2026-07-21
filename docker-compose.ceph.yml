@@ -1,0 +1,37 @@
+# ==================================================
+# Override de STORAGE — dados persistentes no Ceph (/mnt/gv0/ad-audit)
+#
+# Uso (junto com o compose base e, opcionalmente, o de produção):
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.prod.yml \
+#     -f docker-compose.ceph.yml up -d
+#
+# Pré-requisito: os diretórios devem existir ANTES do 'up'
+#   (rode scripts/prepare-ceph-storage.sh).
+#
+# Os volumes nomeados são religados (bind) para subpastas em /mnt/gv0/ad-audit.
+# ==================================================
+name: ad-audit-portal
+
+volumes:
+  pgdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/gv0/ad-audit/pgdata
+
+  redisdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/gv0/ad-audit/redisdata
+
+  wefspool:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/gv0/ad-audit/wef-spool

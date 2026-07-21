@@ -1,0 +1,3 @@
+# Dependências para rodar os testes (além das do backend/collector)
+pytest==8.3.4
+httpx==0.28.1

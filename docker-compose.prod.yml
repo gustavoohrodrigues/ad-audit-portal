@@ -1,0 +1,59 @@
+# ==================================================
+# Override de produção. Use com:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Ajustes: sem exposição desnecessária de portas, limites de recursos,
+# logging rotacionado, workers/replicas maiores.
+# Reverse-proxy/TLS: NGINX Proxy Manager externo (ver docs/npm.md).
+# ==================================================
+name: ad-audit-portal
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  postgres:
+    <<: *logging
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+    # não publica porta — acesso apenas pela rede interna
+
+  redis:
+    <<: *logging
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512m }
+
+  backend:
+    <<: *logging
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1g }
+
+  collector:
+    <<: *logging
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512m }
+
+  worker:
+    <<: *logging
+    command: ["celery", "-A", "app.celery_app.celery_app", "worker", "--loglevel=WARNING", "--concurrency=4"]
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1g }
+
+  beat:
+    <<: *logging
+
+  frontend:
+    <<: *logging
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }

@@ -1,0 +1,36 @@
+# Exemplo de configuração do Prometheus para o AD Audit Portal.
+# Aponte para o backend em /api/v1/metrics.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: ad-audit-backend
+    metrics_path: /api/v1/metrics
+    scheme: http
+    static_configs:
+      - targets: ["backend:8000"]
+        labels:
+          app: ad-audit-portal
+
+# Regras de alerta sugeridas (carregue via rule_files).
+# groups:
+#   - name: ad-audit
+#     rules:
+#       - alert: IngestionLagAlto
+#         expr: adaudit_ingestion_lag_seconds > 3600
+#         for: 10m
+#         labels: { severity: warning }
+#         annotations:
+#           summary: "Atraso de ingestão alto no DC {{ $labels.dc }}"
+#       - alert: FonteDeEventosDown
+#         expr: adaudit_source_up == 0
+#         for: 5m
+#         labels: { severity: critical }
+#         annotations:
+#           summary: "Fonte de eventos {{ $labels.source }} indisponível"
+#       - alert: PicoDeLoginFalho
+#         expr: increase(adaudit_login_attempts_total{result="failure"}[5m]) > 50
+#         labels: { severity: warning }
+#         annotations:
+#           summary: "Pico de falhas de login no portal"

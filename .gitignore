@@ -1,0 +1,76 @@
+# ==================================================
+# Segredos e ambiente — NUNCA versionar
+# ==================================================
+.env
+.env.*
+!.env.example
+# ignora segredos reais, mas mantém a estrutura/documentação do diretório
+secrets/*
+!secrets/README.md
+!secrets/.gitkeep
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.cer
+*.jks
+*.keystore
+credentials.json
+
+# ==================================================
+# Python
+# ==================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.egg-info/
+dist/
+build/
+
+# ==================================================
+# Node / Frontend
+# ==================================================
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.eslintcache
+
+# ==================================================
+# Banco / Backups / Dados locais
+# ==================================================
+backups/
+*.sql.gz
+*.dump
+pgdata/
+redisdata/
+
+# ==================================================
+# IDE / OS
+# ==================================================
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ==================================================
+# Logs
+# ==================================================
+*.log
+logs/
