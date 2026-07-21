@@ -1,5 +1,5 @@
 # Banco (async)
-sqlalchemy[asyncio]==2.0.36
+sqlalchemy[asyncio]==2.0.51
 psycopg[binary,pool]==3.2.3
 
 # HTTP para conectores SIEM
