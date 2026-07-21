@@ -224,6 +224,10 @@ class Settings(BaseSettings):
     # ---- Auditoria interna ----
     audit_log_enabled: bool = True
     audit_log_retention_days: int = 730
+    notification_retention_days: int = 180
+    maintenance_vacuum_enabled: bool = True
+    maintenance_cron_hour: int = 3
+    db_statement_timeout_ms: int = 30000
     audit_export_enabled: bool = True
     audit_raw_event_access_security_only: bool = True
     mask_sensitive_data: bool = True

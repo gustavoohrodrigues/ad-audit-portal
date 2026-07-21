@@ -1,6 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
+import { Icon } from '@/components/icons'
+import { fmtDate } from '@/lib/format'
+import { useAuth } from '@/hooks/useAuth'
 
 interface CapacityData {
   database: {
@@ -14,11 +18,36 @@ interface CapacityData {
   config: Record<string, unknown>
 }
 
+interface MaintStatus {
+  tables: { table: string; bytes: number; rows: number; dead_rows: number }[]
+  policies: { data_type: string; retention_days: number; last_purge_at?: string }[]
+  config: Record<string, unknown>
+}
+
 export function Capacity() {
+  const qc = useQueryClient()
+  const { can } = useAuth()
+  const isAdmin = can('*')
+  const [cleanMsg, setCleanMsg] = useState('')
   const { data, isLoading } = useQuery({
     queryKey: ['capacity'],
     queryFn: () => api.get<CapacityData>('/admin/capacity'),
     refetchInterval: 30000,
+  })
+  const maint = useQuery({
+    queryKey: ['maint-status'],
+    queryFn: () => api.get<MaintStatus>('/admin/maintenance/status'),
+    refetchInterval: 30000,
+  })
+  const cleanup = useMutation({
+    mutationFn: () => api.post<{ stats: Record<string, number> }>('/admin/maintenance/cleanup'),
+    onSuccess: (r) => {
+      const s = r.stats || {}
+      setCleanMsg(`Limpeza concluída — eventos: ${s.events_deleted ?? 0}, JSON bruto: ${s.raw_json_cleared ?? 0}, auditoria: ${s.audit_deleted ?? 0}, notificações: ${s.notifications_deleted ?? 0}, VACUUM: ${s.vacuum ? 'sim' : 'não'}.`)
+      qc.invalidateQueries({ queryKey: ['maint-status'] })
+      qc.invalidateQueries({ queryKey: ['capacity'] })
+    },
+    onError: (e) => setCleanMsg('Falha: ' + (e as Error).message),
   })
 
   if (isLoading || !data) return <Loading />
@@ -77,6 +106,58 @@ export function Capacity() {
           ))}
         </Card>
       </div>
+
+      {/* Manutenção do banco */}
+      <Card title="Manutenção do Banco">
+        <div className="row" style={{ marginBottom: 12 }}>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Limpeza por retenção (purge em lotes) + recuperação de espaço (VACUUM). Evita crescimento descontrolado e sobrecarga.
+          </span>
+          <span className="spacer" />
+          {isAdmin && (
+            <button className="primary btn-icon" disabled={cleanup.isPending} onClick={() => { setCleanMsg(''); cleanup.mutate() }}>
+              <Icon name="trash" size={15} /> {cleanup.isPending ? 'Executando…' : 'Executar limpeza agora'}
+            </button>
+          )}
+        </div>
+        {cleanMsg && <div className="muted" style={{ fontSize: 12, marginBottom: 10, color: cleanMsg.startsWith('Falha') ? 'var(--critical)' : 'var(--low)' }}>{cleanMsg}</div>}
+        {maint.data && (
+          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="table-wrap">
+              <div className="section-title" style={{ marginTop: 0 }}>Retenção configurada</div>
+              <table>
+                <thead><tr><th>Tipo</th><th>Dias</th><th>Última limpeza</th></tr></thead>
+                <tbody>
+                  {maint.data.policies.map((p) => (
+                    <tr key={p.data_type}>
+                      <td>{p.data_type}</td>
+                      <td>{p.retention_days}</td>
+                      <td className="mono muted">{fmtDate(p.last_purge_at)}</td>
+                    </tr>
+                  ))}
+                  {!maint.data.policies.length && <tr><td colSpan={3} className="muted">Nenhuma limpeza executada ainda.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="table-wrap">
+              <div className="section-title" style={{ marginTop: 0 }}>Linhas mortas (bloat) por tabela</div>
+              <table>
+                <thead><tr><th>Tabela</th><th>Linhas</th><th>Mortas</th></tr></thead>
+                <tbody>
+                  {maint.data.tables.filter((t) => t.dead_rows > 0).slice(0, 8).map((t) => (
+                    <tr key={t.table}>
+                      <td className="mono">{t.table}</td>
+                      <td>{t.rows.toLocaleString('pt-BR')}</td>
+                      <td><Badge kind={t.dead_rows > 10000 ? 'high' : 'medium'}>{t.dead_rows.toLocaleString('pt-BR')}</Badge></td>
+                    </tr>
+                  ))}
+                  {!maint.data.tables.some((t) => t.dead_rows > 0) && <tr><td colSpan={3} className="muted">Sem bloat relevante.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {data.database.unused_indexes.length > 0 && (
         <Card title={`Índices sem uso (${data.database.unused_indexes.length}) — candidatos a revisão`}>

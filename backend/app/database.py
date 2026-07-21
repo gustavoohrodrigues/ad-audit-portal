@@ -17,6 +17,11 @@ if _async_url.startswith("postgresql+psycopg://"):
     # psycopg3 já é compatível com asyncio no SQLAlchemy 2.x
     pass
 
+# Hardening: statement_timeout evita queries descontroladas segurarem conexões.
+_connect_args: dict = {}
+if _async_url.startswith("postgresql+psycopg://") and settings.db_statement_timeout_ms > 0:
+    _connect_args["options"] = f"-c statement_timeout={settings.db_statement_timeout_ms}"
+
 engine = create_async_engine(
     _async_url,
     echo=settings.app_debug,
@@ -24,6 +29,7 @@ engine = create_async_engine(
     pool_size=settings.api_sql_pool_size,
     max_overflow=settings.api_sql_max_overflow,
     pool_recycle=settings.api_sql_pool_recycle_seconds,
+    connect_args=_connect_args,
 )
 
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

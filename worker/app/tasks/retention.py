@@ -55,6 +55,17 @@ def apply_retention() -> dict:
         )
         result["audit_deleted"] = r.rowcount
 
+        # 3b) remove histórico de notificações antigo
+        notif_cut = now - timedelta(days=config.notification_retention_days)
+        try:
+            r = s.execute(
+                text("DELETE FROM notification_deliveries WHERE created_at < :cut"),
+                {"cut": notif_cut},
+            )
+            result["notifications_deleted"] = r.rowcount
+        except Exception:  # tabela pode não existir em versões antigas
+            pass
+
         # 4) registra a execução da política
         for dtype, days in (
             ("events", config.event_retention_days),

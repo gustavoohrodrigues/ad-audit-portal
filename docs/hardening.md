@@ -132,7 +132,7 @@ Da mesma forma, a conta de leitura de eventos (`svc_ad_event_reader`, usada no c
 
 ---
 
-## 9. Retenção e expurgo de dados
+## 9. Retenção, expurgo e manutenção de banco
 
 Defina políticas de retenção alinhadas à necessidade operacional e à LGPD:
 
@@ -140,11 +140,38 @@ Defina políticas de retenção alinhadas à necessidade operacional e à LGPD:
 EVENT_RETENTION_DAYS=365          # eventos normalizados/correlacionados
 EVENT_RAW_RETENTION_DAYS=90       # payload bruto (mais sensível, retenção menor)
 AUDIT_LOG_RETENTION_DAYS=730      # trilha de auditoria do próprio portal
+NOTIFICATION_RETENTION_DAYS=180   # histórico de entregas de notificações
 INACTIVE_ACCOUNT_DAYS=90          # janela de inatividade para relatórios
 ```
 
 - Mantenha a retenção do **evento bruto** menor que a do evento normalizado (reduz superfície de dados sensíveis).
-- O expurgo deve ser automático (job de limpeza) e auditável.
+- O expurgo é **automático e auditável**: o worker/beat executa a política diariamente (hora definida em `MAINTENANCE_CRON_HOUR`), removendo eventos, JSON bruto, auditoria e histórico de notificações fora da janela e registrando em `retention_policies`.
+
+### Limpeza e recuperação de espaço (anti-sobrecarga)
+
+Além da retenção, o portal oferece manutenção ativa do PostgreSQL para evitar crescimento descontrolado e bloat:
+
+- **Purga em lotes** (`ctid`, sem lock longo) para não travar o banco em tabelas grandes.
+- **VACUUM ANALYZE** ao final (`MAINTENANCE_VACUUM_ENABLED=true`) recupera espaço de linhas mortas e atualiza estatísticas do planner.
+- **`statement_timeout` por sessão** (`DB_STATEMENT_TIMEOUT_MS=30000`) impede que uma query travada consuma o banco.
+
+Formas de disparar:
+
+```bash
+# 1) UI (admin): página "Capacidade & Performance" → "Executar limpeza agora"
+# 2) API (admin): POST /api/v1/admin/maintenance/cleanup  (audita ação db_cleanup)
+#    Status:       GET  /api/v1/admin/maintenance/status
+# 3) Host cron (VACUUM ANALYZE nas tabelas de maior rotatividade):
+./scripts/db-maintenance.sh
+```
+
+Exemplo de cron no host (03h, complementando a retenção automática do worker):
+
+```cron
+0 3 * * *  cd /mnt/gv0/ad-audit && ./scripts/db-maintenance.sh >> /var/log/ad-audit-maint.log 2>&1
+```
+
+A limpeza via API/UI é **protegida por RBAC (administrator)**, usa **lock no Redis** (`maintenance:cleanup:lock`) para evitar execução concorrente e é **auditada**.
 
 ---
 
@@ -199,7 +226,32 @@ updates:
 
 ---
 
-## 12. Checklist final de hardening
+## 12. Override de hardening de containers e verificação automática
+
+O repositório inclui um override pronto que aplica os controles de runtime da seção 6 sem editar os compose principais:
+
+```bash
+# Subir com hardening aplicado (junto dos demais overrides):
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.prod.yml \
+  -f docker-compose.ceph.yml \
+  -f docker-compose.hardening.yml up -d
+```
+
+`docker-compose.hardening.yml` aplica a todos os serviços de aplicação: `security_opt: no-new-privileges:true`, `cap_drop: ALL`, `pids_limit` (anti fork-bomb) e limite de descritores de arquivo (`ulimits.nofile`). Postgres e Redis recebem um perfil mais conservador para não quebrar o `chown`/entrypoint oficial.
+
+Após subir, valide o estado com o script de verificação (não altera nada, imprime PASS/WARN):
+
+```bash
+./scripts/hardening-check.sh
+```
+
+Ele confere: containers rodando como não-root, `no-new-privileges`, cabeçalhos de segurança, `statement_timeout` ativo, permissão do `.env`, `APP_DEBUG=false`, LDAPS e exposição de portas.
+
+---
+
+## 13. Checklist final de hardening
 
 - [ ] NPM com TLS 1.2/1.3, redirect HTTP→HTTPS e **HSTS** habilitado.
 - [ ] Headers de segurança presentes (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP).
@@ -210,7 +262,8 @@ updates:
 - [ ] Containers não-root (10001/10002/10003, nginx-unprivileged), `no-new-privileges`, `cap_drop ALL`, FS read-only onde possível.
 - [ ] Rede interna isolada; apenas o frontend publicado.
 - [ ] Rate limiting ativo no app e no NPM.
-- [ ] Retenção/expurgo configurados (`EVENT_RETENTION_DAYS`, `EVENT_RAW_RETENTION_DAYS`, `AUDIT_LOG_RETENTION_DAYS`).
+- [ ] Retenção/expurgo configurados (`EVENT_RETENTION_DAYS`, `EVENT_RAW_RETENTION_DAYS`, `AUDIT_LOG_RETENTION_DAYS`, `NOTIFICATION_RETENTION_DAYS`).
+- [ ] Manutenção de banco ativa: `MAINTENANCE_VACUUM_ENABLED=true`, `DB_STATEMENT_TIMEOUT_MS` definido, `docker-compose.hardening.yml` aplicado e `./scripts/hardening-check.sh` sem WARN crítico.
 - [ ] LGPD: `MASK_SENSITIVE_DATA=true`, `AUDIT_RAW_EVENT_ACCESS_SECURITY_ONLY=true`.
 - [ ] `/api/v1/metrics` restrito à rede de monitoramento.
 - [ ] Scan Trivy/Grype no CI e Dependabot/Renovate ativos.

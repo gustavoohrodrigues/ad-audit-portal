@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     health,
     inventory,
     lockouts,
+    maintenance,
     monitoring,
     notifications,
     reports,
@@ -45,3 +46,4 @@ api_router.include_router(monitoring.router)
 api_router.include_router(reports.router)
 api_router.include_router(admin.router)
 api_router.include_router(capacity.router)
+api_router.include_router(maintenance.router)

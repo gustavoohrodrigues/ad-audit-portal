@@ -71,6 +71,7 @@ class WorkerConfig:
     event_retention_days = _int("EVENT_RETENTION_DAYS", 365)
     raw_retention_days = _int("EVENT_RAW_RETENTION_DAYS", 90)
     audit_retention_days = _int("AUDIT_LOG_RETENTION_DAYS", 730)
+    notification_retention_days = _int("NOTIFICATION_RETENTION_DAYS", 180)
 
 
 config = WorkerConfig

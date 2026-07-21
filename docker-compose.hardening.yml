@@ -1,0 +1,49 @@
+# ==================================================
+# Override de HARDENING de containers.
+# Use junto com os demais:
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.prod.yml \
+#     -f docker-compose.ceph.yml \
+#     -f docker-compose.hardening.yml up -d
+#
+# Aplica: no-new-privileges, drop de capabilities, limite de PIDs (anti fork-bomb)
+# e limite de descritores de arquivo.
+# ==================================================
+name: ad-audit-portal
+
+x-hardened: &hardened
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 512
+  ulimits:
+    nofile:
+      soft: 8192
+      hard: 16384
+
+services:
+  backend:
+    <<: *hardened
+  collector:
+    <<: *hardened
+  worker:
+    <<: *hardened
+  beat:
+    <<: *hardened
+  frontend:
+    <<: *hardened
+
+  # bancos: no-new-privileges + limite de PIDs (mantêm capabilities mínimas do
+  # entrypoint oficial; cap_drop ALL pode quebrar o chown inicial em alguns hosts)
+  postgres:
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+  redis:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
