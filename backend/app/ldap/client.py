@@ -13,7 +13,7 @@ from __future__ import annotations
 import ssl
 from typing import Any
 
-from ldap3 import DSA, SUBTREE, Connection, Server, Tls
+from ldap3 import BASE, NONE, SUBTREE, Connection, Server, Tls
 from ldap3.core.exceptions import LDAPException
 from ldap3.utils.conv import escape_filter_chars
 
@@ -76,15 +76,25 @@ class ReadOnlyLDAP:
         )
 
     def _server(self, uri: str) -> Server:
+        """Monta o Server separando host/porta da URI e sem leitura automática.
+
+        get_info=NONE: o ldap3 NÃO baixa DSA/schema no connect. O schema do AD é
+        enorme e trava o parser em alguns DCs; e não precisamos dele (buscas usam
+        atributos explícitos). Passar host+porta separados (em vez da URL inteira)
+        evita comportamento inconsistente de parsing da URL no ldap3.
+        """
         use_ssl = uri.lower().startswith("ldaps://") or self.settings.ad_ldap_use_ssl
+        hostport = uri.split("://", 1)[-1]
+        host = hostport.split(":")[0]
+        try:
+            port = int(hostport.split(":")[1])
+        except (IndexError, ValueError):
+            port = 636 if use_ssl else 389
         return Server(
-            uri,
+            host,
+            port=port,
             use_ssl=use_ssl,
-            # DSA lê apenas o RootDSE (inclui highestCommittedUSN); evita baixar
-            # o schema completo do AD, que é enorme e trava o parser do ldap3
-            # em alguns DCs. Buscas usam atributos explícitos e não dependem do
-            # schema, então DSA é suficiente e mais robusto.
-            get_info=DSA,
+            get_info=NONE,
             tls=self._build_tls() if use_ssl else None,
             connect_timeout=self.settings.ad_ldap_timeout_seconds,
         )
@@ -102,14 +112,15 @@ class ReadOnlyLDAP:
                     user=s.ad_bind_dn or s.ad_bind_username,
                     password=s.ad_bind_password,
                     auto_bind=True,
-                    read_only=True,  # reforço: conexão marcada como somente leitura
                     receive_timeout=s.ad_ldap_timeout_seconds,
                 )
                 return conn
             except LDAPException as exc:
                 last_exc = exc
-                logger.warning("Falha de bind LDAP em %s (tentando fallback)", uri)
-        raise ConnectionError("Não foi possível conectar a nenhum DC LDAPS") from last_exc
+                logger.warning("Falha de bind LDAP em %s: %s", uri, type(exc).__name__)
+        raise ConnectionError(
+            f"Não foi possível conectar a nenhum DC LDAP: {type(last_exc).__name__ if last_exc else '?'}"
+        ) from last_exc
 
     # ---- Autenticação da aplicação (validação de senha do usuário) ----
     def authenticate(self, username: str, password: str) -> dict[str, Any] | None:
@@ -221,21 +232,25 @@ class ReadOnlyLDAP:
     def get_highest_committed_usn(self) -> int:
         """Lê highestCommittedUSN do RootDSE (watermark de sync incremental).
 
-        É atributo operacional — vem no RootDSE via server.info.other (a conexão
-        usa get_info=DSA, que lê o RootDSE). Uma busca direta pelo atributo seria
-        rejeitada pela validação de schema do ldap3."""
+        Como usamos get_info=NONE (sem schema), fazemos uma busca explícita no
+        RootDSE (base vazia, escopo BASE). Sem schema carregado, o ldap3 não
+        rejeita o atributo operacional."""
         conn = self._connect_service()
         try:
-            info = conn.server.info
-            other = getattr(info, "other", {}) if info else {}
-            val = other.get("highestCommittedUSN") if other else None
-            if isinstance(val, (list, tuple)) and val:
-                val = val[0]
-            return int(val) if val is not None else 0
+            conn.search(
+                search_base="",
+                search_filter="(objectClass=*)",
+                search_scope=BASE,
+                attributes=["highestCommittedUSN"],
+            )
+            if conn.entries:
+                val = conn.entries[0].highestCommittedUSN.value
+                return int(val) if val is not None else 0
         except Exception:  # noqa: BLE001
             return 0
         finally:
             conn.unbind()
+        return 0
 
     def get_user_by_identifier(self, identifier: str) -> dict[str, Any] | None:
         """Busca por sAMAccountName, UPN, SID ou DN — tudo escapado."""
