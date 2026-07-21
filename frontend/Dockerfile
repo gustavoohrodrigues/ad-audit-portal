@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ============ Stage 1: build do SPA ============
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 COPY package.json ./
 # usa npm install (sem lockfile versionado neste template); em produção,
