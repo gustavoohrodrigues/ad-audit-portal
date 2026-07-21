@@ -60,7 +60,7 @@ export function Health() {
 
       {/* Lista de checks */}
       <Card title={`Health checks (${data.checks.length})`}>
-        {!data.checks.length && <div className="muted">Nenhum check ativo. Ambiente 100% saudável. 🎉</div>}
+        {!data.checks.length && <div className="muted">Nenhum check ativo. Ambiente 100% saudável.</div>}
         {data.checks.map((c) => (
           <div key={c.id} style={{
             padding: '12px 0', borderBottom: '1px solid var(--border)',

@@ -6,6 +6,7 @@ import { fmtDate } from '@/lib/format'
 import { eventLabel } from '@/lib/format'
 import { Badge, Card, Loading, SeverityBadge } from '@/components/ui'
 import { NotifyModal } from '@/components/NotifyModal'
+import { Icon } from '@/components/icons'
 import { useAuth } from '@/hooks/useAuth'
 import type { ADUser, EventRow } from '@/types'
 
@@ -55,8 +56,8 @@ function LockoutOriginPanel({ identifier }: { identifier: string }) {
           {live ? 'Consulta ao vivo nos Domain Controllers (WinRM).' : 'Origens já coletadas.'}
         </span>
         <span className="spacer" />
-        <button className={live ? 'primary' : ''} disabled={isFetching} onClick={() => setLive(true)} style={{ padding: '4px 10px', fontSize: 12 }}>
-          {isFetching && live ? 'Consultando DCs…' : '⚡ Consultar ao vivo (WinRM)'}
+        <button className={`btn-icon ${live ? 'primary' : ''}`} disabled={isFetching} onClick={() => setLive(true)} style={{ padding: '4px 10px', fontSize: 12 }}>
+          <Icon name="zap" size={14} /> {isFetching && live ? 'Consultando DCs…' : 'Consultar ao vivo (WinRM)'}
         </button>
       </div>
       {data.live_error && <div className="error" style={{ fontSize: 12, marginBottom: 8 }}>WinRM: {data.live_error}</div>}
@@ -87,10 +88,11 @@ function LockoutOriginPanel({ identifier }: { identifier: string }) {
           <span className="muted" style={{ fontSize: 11 }}>Comando PowerShell</span>
           <span className="spacer" />
           <button
+            className="btn-icon"
             style={{ padding: '3px 10px', fontSize: 11 }}
             onClick={() => { navigator.clipboard.writeText(data.powershell_command); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
           >
-            {copied ? '✓ Copiado' : 'Copiar'}
+            <Icon name={copied ? 'check' : 'copy'} size={13} /> {copied ? 'Copiado' : 'Copiar'}
           </button>
         </div>
         <pre className="mono" style={{ background: 'var(--bg-0)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -129,7 +131,9 @@ export function UserDetail() {
             {u.is_critical && <Badge kind="crit-acct">Crítico</Badge>}
           </div>
           {can('investigation:manage') && (
-            <button className="primary" onClick={() => setNotifyOpen(true)}>✉ Avisar usuário</button>
+            <button className="primary btn-icon" onClick={() => setNotifyOpen(true)}>
+              <Icon name="send" size={15} /> Avisar usuário
+            </button>
           )}
         </div>
       </div>

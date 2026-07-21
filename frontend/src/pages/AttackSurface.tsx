@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { fmtDate } from '@/lib/format'
 import { Badge, Card, Loading } from '@/components/ui'
+import { Icon } from '@/components/icons'
 import type { DetectionResult } from '@/types'
 
 const TABS = [
@@ -56,7 +57,9 @@ export function AttackSurface() {
         ))}
         <span className="spacer" />
         {data && data.items.length > 0 && (
-          <button onClick={() => exportCsv(tab.path, data.items as unknown as Record<string, unknown>[])}>⬇ Exportar CSV</button>
+          <button className="btn-icon" onClick={() => exportCsv(tab.path, data.items as unknown as Record<string, unknown>[])}>
+            <Icon name="download" size={15} /> Exportar CSV
+          </button>
         )}
       </div>
 

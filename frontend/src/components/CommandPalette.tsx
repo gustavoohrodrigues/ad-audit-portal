@@ -13,7 +13,7 @@ export function CommandPalette() {
   const nav = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // atalho Ctrl+K / ⌘K
+  // atalho Ctrl+K / ⌘K + evento do botão de busca
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -22,8 +22,13 @@ export function CommandPalette() {
       }
       if (e.key === 'Escape') setOpen(false)
     }
+    const onOpen = () => setOpen(true)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('open-command-palette', onOpen)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('open-command-palette', onOpen)
+    }
   }, [])
 
   useEffect(() => {

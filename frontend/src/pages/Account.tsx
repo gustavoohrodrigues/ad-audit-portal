@@ -53,7 +53,7 @@ export function Account() {
 
       {me?.mfa_enrollment_required && (
         <div className="card" style={{ borderColor: 'var(--medium)', background: 'rgba(255,176,32,0.1)', marginBottom: 14 }}>
-          <strong style={{ color: 'var(--medium)' }}>⚠ MFA obrigatório para o seu perfil</strong>
+          <strong style={{ color: 'var(--medium)' }}>MFA obrigatório para o seu perfil</strong>
           <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
             Configure a autenticação em duas etapas abaixo para liberar o acesso ao portal.
           </div>

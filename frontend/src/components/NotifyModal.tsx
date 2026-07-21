@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { Badge } from '@/components/ui'
+import { Icon } from '@/components/icons'
 
 const CHANNELS = [
   { key: 'email', label: 'E-mail' },
@@ -59,7 +60,7 @@ export function NotifyModal({ identifier, onClose }: { identifier: string; onClo
         <div className="row" style={{ marginBottom: 12 }}>
           <strong style={{ fontSize: 16 }}>Avisar usuário — {identifier}</strong>
           <span className="spacer" />
-          <button onClick={onClose} style={{ padding: '3px 10px' }}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Fechar"><Icon name="close" size={16} /></button>
         </div>
         <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
           Ação ativa (fora do AD) — auditada. Não altera o Active Directory.

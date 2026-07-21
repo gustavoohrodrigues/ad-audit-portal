@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { Icon } from '@/components/icons'
 import type { NotificationSummary } from '@/types'
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -10,7 +11,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   HEALTH_ERR: { label: 'HEALTH_ERR', color: 'var(--critical)' },
 }
 
-export function NotificationBell() {
+export function NotificationBell({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const { data } = useQuery({
@@ -24,56 +25,31 @@ export function NotificationBell() {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-          justifyContent: 'space-between', borderColor: meta.color + '55',
-        }}
-        title="Saúde e notificações"
-      >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ position: 'relative', fontSize: 15 }}>
-            🔔
-            {count > 0 && (
-              <span style={{
-                position: 'absolute', top: -6, right: -8, minWidth: 16, height: 16,
-                padding: '0 4px', borderRadius: 10, background: 'var(--grad-red)',
-                color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-              }}>{count}</span>
-            )}
-          </span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: meta.color }}>{meta.label}</span>
+      <button className="nav-item as-button" onClick={() => setOpen((o) => !o)} title="Saúde e notificações">
+        <span style={{ position: 'relative', display: 'inline-flex' }}>
+          <Icon name="bell" size={18} style={{ color: meta.color }} />
+          {count > 0 && (
+            <span className="badge-count">{count > 99 ? '99+' : count}</span>
+          )}
         </span>
+        {!collapsed && <span className="nav-label" style={{ color: meta.color, fontWeight: 700, fontSize: 11 }}>{meta.label}</span>}
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute', bottom: '110%', left: 0, right: 0, zIndex: 40,
-          background: 'var(--bg-2)', border: '1px solid var(--border-bright)',
-          borderRadius: 10, boxShadow: 'var(--shadow)', maxHeight: 420, overflow: 'auto',
-        }}>
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+        <div className="notif-panel">
+          <div className="notif-head">
             <strong style={{ fontSize: 12 }}>Notificações</strong>
             <span style={{ fontSize: 11, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
           </div>
-          {!data?.items.length && <div className="muted" style={{ padding: 16, fontSize: 12 }}>Nada a reportar. 🎉</div>}
+          {!data?.items.length && <div className="muted" style={{ padding: 16, fontSize: 12 }}>Nada a reportar.</div>}
           {data?.items.map((n) => (
-            <div
-              key={n.id}
-              onClick={() => { setOpen(false); if (n.link) nav(n.link) }}
-              style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', gap: 8 }}
-            >
+            <div key={n.id} className="notif-item" onClick={() => { setOpen(false); if (n.link) nav(n.link) }}>
               <span className={`badge ${n.severity}`} style={{ height: 'fit-content' }}>{n.severity}</span>
               <span style={{ fontSize: 12 }}>{n.title}</span>
             </div>
           ))}
-          <div
-            onClick={() => { setOpen(false); nav('/health') }}
-            style={{ padding: '9px 12px', textAlign: 'center', cursor: 'pointer', color: 'var(--accent-2)', fontSize: 12, fontWeight: 600 }}
-          >
-            Ver painel de Saúde →
+          <div className="notif-foot" onClick={() => { setOpen(false); nav('/health') }}>
+            Ver painel de Saúde
           </div>
         </div>
       )}
