@@ -13,7 +13,7 @@ from __future__ import annotations
 import ssl
 from typing import Any
 
-from ldap3 import ALL, SUBTREE, Connection, Server, Tls
+from ldap3 import DSA, SUBTREE, Connection, Server, Tls
 from ldap3.core.exceptions import LDAPException
 from ldap3.utils.conv import escape_filter_chars
 
@@ -80,7 +80,11 @@ class ReadOnlyLDAP:
         return Server(
             uri,
             use_ssl=use_ssl,
-            get_info=ALL,
+            # DSA lê apenas o RootDSE (inclui highestCommittedUSN); evita baixar
+            # o schema completo do AD, que é enorme e trava o parser do ldap3
+            # em alguns DCs. Buscas usam atributos explícitos e não dependem do
+            # schema, então DSA é suficiente e mais robusto.
+            get_info=DSA,
             tls=self._build_tls() if use_ssl else None,
             connect_timeout=self.settings.ad_ldap_timeout_seconds,
         )
@@ -217,9 +221,9 @@ class ReadOnlyLDAP:
     def get_highest_committed_usn(self) -> int:
         """Lê highestCommittedUSN do RootDSE (watermark de sync incremental).
 
-        É atributo operacional — vem no RootDSE via server.info.other quando a
-        conexão usa get_info=ALL (uma busca direta pelo atributo é rejeitada
-        pela validação de schema do ldap3)."""
+        É atributo operacional — vem no RootDSE via server.info.other (a conexão
+        usa get_info=DSA, que lê o RootDSE). Uma busca direta pelo atributo seria
+        rejeitada pela validação de schema do ldap3."""
         conn = self._connect_service()
         try:
             info = conn.server.info
