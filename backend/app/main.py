@@ -31,7 +31,11 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     import asyncio
 
-    from app.services.scheduler import ad_sync_loop, posture_snapshot_loop
+    from app.services.scheduler import (
+        ad_sync_loop,
+        health_chatops_loop,
+        posture_snapshot_loop,
+    )
 
     logger.info(
         "Iniciando %s (env=%s, provider=%s)",
@@ -41,9 +45,11 @@ async def lifespan(app: FastAPI):
     )
     sync_task = asyncio.create_task(ad_sync_loop())
     snapshot_task = asyncio.create_task(posture_snapshot_loop())
+    chatops_task = asyncio.create_task(health_chatops_loop())
     yield
     sync_task.cancel()
     snapshot_task.cancel()
+    chatops_task.cancel()
     logger.info("Encerrando %s", settings.app_name)
 
 

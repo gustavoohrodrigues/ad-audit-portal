@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge, Card } from '@/components/ui'
+import { Icon } from '@/components/icons'
 import { useAuth } from '@/hooks/useAuth'
 
-interface Webhook { id: number; name: string; provider: string; url_masked: string; enabled: boolean; created_by?: string }
+interface Webhook {
+  id: number; name: string; provider: string; url_masked: string
+  enabled: boolean; health_alerts: boolean; created_by?: string
+}
 
 export function ChatWebhooks() {
   const qc = useQueryClient()
@@ -13,6 +17,7 @@ export function ChatWebhooks() {
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [err, setErr] = useState('')
+  const [testResult, setTestResult] = useState<Record<number, { ok: boolean; msg: string }>>({})
 
   const list = useQuery({ queryKey: ['chat-webhooks'], queryFn: () => api.get<{ items: Webhook[] }>('/chat-webhooks') })
   const create = useMutation({
@@ -24,26 +29,63 @@ export function ChatWebhooks() {
     mutationFn: (id: number) => api.del(`/chat-webhooks/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-webhooks'] }),
   })
+  const patch = useMutation({
+    mutationFn: ({ id, field, value }: { id: number; field: string; value: boolean }) =>
+      api.patch(`/chat-webhooks/${id}?${field}=${value}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-webhooks'] }),
+  })
+
+  async function test(id: number) {
+    setTestResult((r) => ({ ...r, [id]: { ok: false, msg: 'enviando…' } }))
+    try {
+      await api.post(`/chat-webhooks/${id}/test`)
+      setTestResult((r) => ({ ...r, [id]: { ok: true, msg: 'Card de teste enviado ao canal' } }))
+    } catch (e) {
+      setTestResult((r) => ({ ...r, [id]: { ok: false, msg: (e as Error).message } }))
+    }
+  }
 
   return (
-    <Card title="Google Chat — cadastro de espaços (webhook)">
+    <Card title="Google Chat — canais e alertas">
       <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-        Cole a URL do <strong>Incoming Webhook</strong> do espaço no Google Chat
-        (Espaço → Apps e integrações → Webhooks → Adicionar). A URL é armazenada
-        de forma mascarada e usada pela Central de Mensagens.
+        Cadastre o <strong>Incoming Webhook</strong> do espaço (Espaço → Apps e integrações → Webhooks).
+        Canais com <strong>alertas de saúde</strong> ativos recebem cards automáticos quando o status vira crítico.
       </div>
 
       {list.data?.items.map((w) => (
-        <div key={w.id} className="row" style={{ padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-          <Badge kind="info">{w.provider}</Badge>
-          <strong>{w.name}</strong>
-          <span className="mono muted" style={{ fontSize: 11 }}>{w.url_masked}</span>
-          <span className="spacer" />
-          {w.enabled ? <Badge kind="low">ativo</Badge> : <Badge kind="medium">inativo</Badge>}
-          {isAdmin && <button style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => remove.mutate(w.id)}>Remover</button>}
+        <div key={w.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+          <div className="row">
+            <Icon name="integrations" size={16} style={{ color: 'var(--accent-2)' }} />
+            <strong>{w.name}</strong>
+            <span className="mono muted" style={{ fontSize: 11 }}>{w.url_masked}</span>
+            <span className="spacer" />
+            {w.enabled ? <Badge kind="low">ativo</Badge> : <Badge kind="medium">inativo</Badge>}
+          </div>
+          <div className="row" style={{ marginTop: 8, gap: 14 }}>
+            {isAdmin && (
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={w.health_alerts} onChange={(e) => patch.mutate({ id: w.id, field: 'health_alerts', value: e.target.checked })} style={{ width: 'auto' }} />
+                <span className="muted" style={{ fontSize: 12 }}>alertas de saúde</span>
+              </label>
+            )}
+            {isAdmin && (
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={w.enabled} onChange={(e) => patch.mutate({ id: w.id, field: 'enabled', value: e.target.checked })} style={{ width: 'auto' }} />
+                <span className="muted" style={{ fontSize: 12 }}>habilitado</span>
+              </label>
+            )}
+            <span className="spacer" />
+            {isAdmin && <button className="btn-icon" style={{ padding: '3px 10px', fontSize: 11 }} onClick={() => test(w.id)}><Icon name="send" size={13} /> Testar</button>}
+            {isAdmin && <button className="btn-icon" style={{ padding: '3px 10px', fontSize: 11 }} onClick={() => remove.mutate(w.id)}><Icon name="trash" size={13} /> Remover</button>}
+          </div>
+          {testResult[w.id] && (
+            <div className={testResult[w.id].ok ? '' : 'error'} style={{ fontSize: 12, marginTop: 6, color: testResult[w.id].ok ? 'var(--low)' : undefined }}>
+              {testResult[w.id].msg}
+            </div>
+          )}
         </div>
       ))}
-      {!list.data?.items.length && <div className="muted" style={{ fontSize: 12 }}>Nenhum espaço cadastrado.</div>}
+      {!list.data?.items.length && <div className="muted" style={{ fontSize: 12 }}>Nenhum canal cadastrado.</div>}
 
       {isAdmin && (
         <form className="row" style={{ marginTop: 14, alignItems: 'flex-end' }} onSubmit={(e) => { e.preventDefault(); if (name && url) create.mutate() }}>
@@ -52,10 +94,10 @@ export function ChatWebhooks() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: SOC-Alertas" />
           </div>
           <div style={{ flex: 1 }}>
-            <label className="muted" style={{ fontSize: 11 }}>URL do webhook (https://chat.googleapis.com/…)</label>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://chat.googleapis.com/v1/spaces/…/messages?key=…&token=…" />
+            <label className="muted" style={{ fontSize: 11 }}>URL do webhook</label>
+            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://chat.googleapis.com/v1/spaces/…" />
           </div>
-          <button className="primary" type="submit" disabled={!name || !url || create.isPending}>Cadastrar</button>
+          <button className="primary btn-icon" type="submit" disabled={!name || !url || create.isPending}><Icon name="plus" size={15} /> Cadastrar</button>
         </form>
       )}
       {err && <div className="error" style={{ marginTop: 8 }}>{err}</div>}

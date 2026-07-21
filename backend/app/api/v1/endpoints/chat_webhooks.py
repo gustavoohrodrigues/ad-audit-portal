@@ -34,6 +34,7 @@ async def list_webhooks(
             {
                 "id": w.id, "name": w.name, "provider": w.provider,
                 "url_masked": _mask_url(w.url), "enabled": w.enabled,
+                "health_alerts": w.health_alerts,
                 "created_by": w.created_by, "created_at": w.created_at,
             }
             for w in rows
@@ -67,6 +68,56 @@ async def create_webhook(
         detail={"provider": wh.provider},  # URL NÃO é registrada
     )
     return {"id": wh.id, "name": wh.name}
+
+
+@router.patch("/{webhook_id}")
+async def update_webhook(
+    webhook_id: int,
+    enabled: bool | None = None,
+    health_alerts: bool | None = None,
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(require_role(Role.administrator)),
+) -> dict:
+    wh = await session.get(ChatWebhook, webhook_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Webhook não encontrado")
+    if enabled is not None:
+        wh.enabled = enabled
+    if health_alerts is not None:
+        wh.health_alerts = health_alerts
+    session.add(wh)
+    await session.commit()
+    return {"id": wh.id, "enabled": wh.enabled, "health_alerts": wh.health_alerts}
+
+
+@router.post("/{webhook_id}/test")
+async def test_webhook(
+    webhook_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(require_role(Role.administrator)),
+) -> dict:
+    """Envia um card de teste ao canal do Google Chat."""
+    from app.services import messaging
+
+    wh = await session.get(ChatWebhook, webhook_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Webhook não encontrado")
+    card = messaging.build_chat_card(
+        title="AD Audit — Teste de integração",
+        subtitle="Canal conectado com sucesso",
+        items=[{"label": "Enviado por", "text": user.username},
+               {"label": "Espaço", "text": wh.name}],
+    )
+    result = messaging.send_chat_card(wh.url, card)
+    await record_audit(
+        session, actor=user.username, actor_role=user.role,
+        action="chat_webhook_test", resource=f"chat_webhook:{wh.name}",
+        ip_address=request.client.host if request.client else None, success=result.ok,
+    )
+    if not result.ok:
+        raise HTTPException(status_code=502, detail=result.message)
+    return {"ok": True, "message": "Card de teste enviado"}
 
 
 @router.delete("/{webhook_id}")

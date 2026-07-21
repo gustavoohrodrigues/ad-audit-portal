@@ -52,6 +52,22 @@ async def posture_snapshot_loop() -> None:
         await asyncio.sleep(6 * 3600)  # reavalia a cada 6h (idempotente por dia)
 
 
+async def health_chatops_loop() -> None:
+    """Avalia a saúde periodicamente e envia alertas ao Google Chat (deduplicado)."""
+    from app.services.chatops import dispatch_health_alert
+
+    await asyncio.sleep(45)
+    while True:
+        acquired = await redis_client.set("chatops:health:lock", "1", nx=True, ex=110)
+        if acquired:
+            try:
+                async with SessionLocal() as session:
+                    await dispatch_health_alert(session)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Falha no ChatOps de saúde: %s", exc)
+        await asyncio.sleep(120)
+
+
 async def ad_sync_loop() -> None:
     if not (settings.ad_enabled and settings.ad_sync_enabled):
         logger.info("Sincronização do AD desabilitada (AD_SYNC_ENABLED=false).")

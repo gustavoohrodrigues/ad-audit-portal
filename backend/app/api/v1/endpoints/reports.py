@@ -68,6 +68,29 @@ async def preview(
     return {**data, "rows": preview_rows, "preview_truncated": data["total"] > 200}
 
 
+@router.post("/{key}/send-chat")
+async def send_report_chat(
+    key: str,
+    webhook_id: int = Query(...),
+    request: Request = None,  # type: ignore[assignment]
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """Envia um resumo do relatório para um canal do Google Chat (ação ativa)."""
+    _require_report(key, user)
+    from app.services.chatops import send_report_to_chat
+
+    result = await send_report_to_chat(session, key, webhook_id)
+    await record_audit(
+        session, actor=user.username, actor_role=user.role, action="report_to_chat",
+        resource=f"report:{key}:webhook:{webhook_id}", success=result.get("ok", False),
+        ip_address=request.client.host if request and request.client else None,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=result.get("message", "Falha no envio"))
+    return result
+
+
 @router.post("/export")
 async def export_report(
     request: Request,

@@ -65,6 +65,7 @@ class ChatWebhook(SQLModel, table=True):
     provider: str = Field(default="google_chat")  # google_chat | teams | slack | discord
     url: str                                       # webhook URL (não exibida na íntegra)
     enabled: bool = Field(default=True)
+    health_alerts: bool = Field(default=True)      # recebe alertas automáticos de saúde
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=_utcnow)
 

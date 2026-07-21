@@ -68,6 +68,8 @@ export const api = {
   post: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   del: <T>(p: string) => request<T>(p, { method: 'DELETE' }),
+  patch: <T>(p: string, body?: unknown) =>
+    request<T>(p, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   login: (username: string, password: string) =>
     request<{ roles: string[]; access_token: string; mfa_required?: boolean; mfa_token?: string }>('/auth/login', {
       method: 'POST',

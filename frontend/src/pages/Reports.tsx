@@ -40,6 +40,24 @@ export function Reports() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [chatWh, setChatWh] = useState('')
+  const [chatMsg, setChatMsg] = useState('')
+
+  const webhooks = useQuery({
+    queryKey: ['chat-webhooks'],
+    queryFn: () => api.get<{ items: { id: number; name: string; enabled: boolean }[] }>('/chat-webhooks'),
+  })
+
+  async function sendChat() {
+    if (!sel || !chatWh) return
+    setBusy(true); setChatMsg('')
+    try {
+      const r = await api.post<{ webhook: string }>(`/reports/${sel.key}/send-chat?webhook_id=${chatWh}`)
+      setChatMsg(`Resumo enviado ao canal ${r.webhook}.`)
+    } catch (e) {
+      setChatMsg('Falha: ' + (e as Error).message)
+    } finally { setBusy(false) }
+  }
 
   const preview = useQuery({
     queryKey: ['report-preview', sel?.key, from, to],
@@ -160,6 +178,18 @@ export function Reports() {
               <button className="btn-icon" onClick={() => download('csv')} disabled={busy}><Icon name="download" size={15} /> CSV</button>
               <button className="btn-icon" onClick={() => download('json')} disabled={busy}><Icon name="download" size={15} /> JSON</button>
             </div>
+            {(webhooks.data?.items.filter((w) => w.enabled).length ?? 0) > 0 && (
+              <div className="row" style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <Icon name="megaphone" size={16} style={{ color: 'var(--accent-2)' }} />
+                <span className="muted" style={{ fontSize: 12 }}>Enviar resumo para o Google Chat:</span>
+                <select value={chatWh} onChange={(e) => setChatWh(e.target.value)} style={{ width: 200 }}>
+                  <option value="">Selecione o canal…</option>
+                  {webhooks.data?.items.filter((w) => w.enabled).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+                <button className="btn-icon primary" disabled={!chatWh || busy} onClick={sendChat}><Icon name="send" size={14} /> Enviar</button>
+                {chatMsg && <span className="muted" style={{ fontSize: 12 }}>{chatMsg}</span>}
+              </div>
+            )}
           </Card>
 
           {preview.isLoading && <Loading />}

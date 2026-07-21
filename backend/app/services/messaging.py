@@ -73,7 +73,7 @@ def is_google_chat_url(url: str) -> bool:
 
 
 def send_to_chat_webhook(url: str, subject: str, body: str) -> DeliveryResult:
-    """Envia uma mensagem para um webhook do Google Chat (formato {'text': ...})."""
+    """Envia uma mensagem simples (texto) para um webhook do Google Chat."""
     cid = str(uuid.uuid4())
     subject = sanitize(subject, 200)
     body = sanitize(body)
@@ -84,6 +84,52 @@ def send_to_chat_webhook(url: str, subject: str, body: str) -> DeliveryResult:
             return DeliveryResult(False, "URL de webhook do Google Chat inválida", cid)
         text = f"*{subject}*\n{body}" if subject else body
         _post_webhook(url, {"text": text})
+        return DeliveryResult(True, "Enviado", cid)
+    except Exception as exc:  # noqa: BLE001
+        return DeliveryResult(False, f"Falha no envio: {type(exc).__name__}", cid)
+
+
+def build_chat_card(
+    title: str,
+    subtitle: str = "",
+    items: list[dict] | None = None,
+    link: dict | None = None,
+) -> dict:
+    """Monta um cardsV2 do Google Chat.
+
+    items: [{"label": "...", "text": "..."}]  link: {"text": "...", "url": "..."}
+    """
+    widgets: list[dict] = []
+    for it in (items or []):
+        widgets.append({"decoratedText": {
+            "topLabel": sanitize(str(it.get("label", "")), 60),
+            "text": sanitize(str(it.get("text", "")), 400),
+            "wrapText": True,
+        }})
+    if link and link.get("url"):
+        widgets.append({"buttonList": {"buttons": [{
+            "text": sanitize(str(link.get("text", "Abrir")), 40),
+            "onClick": {"openLink": {"url": link["url"]}},
+        }]}})
+    sections = [{"widgets": widgets}] if widgets else []
+    return {"cardsV2": [{
+        "cardId": str(uuid.uuid4()),
+        "card": {
+            "header": {"title": sanitize(title, 120), "subtitle": sanitize(subtitle, 120)},
+            "sections": sections,
+        },
+    }]}
+
+
+def send_chat_card(url: str, card: dict) -> DeliveryResult:
+    """Envia um card rico (cardsV2) para um webhook do Google Chat."""
+    cid = str(uuid.uuid4())
+    try:
+        if not settings.notifications_enabled:
+            return DeliveryResult(False, "Notificações desabilitadas", cid)
+        if not is_google_chat_url(url):
+            return DeliveryResult(False, "URL de webhook do Google Chat inválida", cid)
+        _post_webhook(url, card)
         return DeliveryResult(True, "Enviado", cid)
     except Exception as exc:  # noqa: BLE001
         return DeliveryResult(False, f"Falha no envio: {type(exc).__name__}", cid)
