@@ -9,6 +9,12 @@
 #
 # Aplica: no-new-privileges, drop de capabilities, limite de PIDs (anti fork-bomb)
 # e limite de descritores de arquivo.
+#
+# NOTA: o limite de PIDs é declarado em deploy.resources.limits.pids (e NÃO em
+# pids_limit) para fazer merge com o bloco deploy.resources.limits que o
+# docker-compose.prod.yml já define (cpus/memory). Usar pids_limit junto com
+# deploy.resources.limits causa: "can't set distinct values on 'pids_limit' and
+# 'deploy.resources.limits.pids'".
 # ==================================================
 name: ad-audit-portal
 
@@ -17,7 +23,10 @@ x-hardened: &hardened
     - no-new-privileges:true
   cap_drop:
     - ALL
-  pids_limit: 512
+  deploy:
+    resources:
+      limits:
+        pids: 512
   ulimits:
     nofile:
       soft: 8192
@@ -40,10 +49,16 @@ services:
   postgres:
     security_opt:
       - no-new-privileges:true
-    pids_limit: 512
+    deploy:
+      resources:
+        limits:
+          pids: 512
   redis:
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    pids_limit: 256
+    deploy:
+      resources:
+        limits:
+          pids: 256
