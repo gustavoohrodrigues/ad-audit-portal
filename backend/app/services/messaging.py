@@ -56,7 +56,6 @@ class DeliveryResult:
 # Tabelas + estilos inline para máxima compatibilidade (Outlook/Gmail etc.).
 # ---------------------------------------------------------------------------
 _BRAND = {
-    "name": "Grupo Astra",
     "product": "AD Audit Portal",
     "tagline": "Auditoria & Segurança de Identidade do Active Directory",
     "site": "www.astra-sa.com",
@@ -64,8 +63,9 @@ _BRAND = {
     "cnpj": "50.949.528/0001-80",
     "phone": "0800 160 5051",
     "email": "sac@astra-sa.com",
-    "copyright": "© 2020–%Y Grupo Astra. Todos os direitos reservados.",
+    "copyright": "© 2020–%Y Astra. Todos os direitos reservados.",
 }
+_LOGO = "https://www.astra-sa.com/arquivos/logo-loja.png?v=638850653961800000"
 # Degradê de azul (escuro → vibrante) usado no cabeçalho e detalhes.
 _GRAD = "linear-gradient(135deg,#0a2a6b 0%,#12489e 48%,#2f80ed 100%)"
 _BLUE_DEEP = "#0a2a6b"
@@ -97,9 +97,10 @@ def render_email_html(subject: str, body: str) -> str:
   <tr><td style="background:{_BLUE};background:{_GRAD};padding:30px 34px 26px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
       <td style="vertical-align:middle;">
-        <div style="font-size:26px;font-weight:800;letter-spacing:5px;color:#ffffff;">ASTRA</div>
-        <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:#bcd4ff;margin-top:2px;">
-          {_html.escape(_BRAND["product"]).upper()}</div>
+        <span style="display:inline-block;background:#ffffff;border-radius:8px;padding:8px 14px;line-height:0;">
+          <img src="{_LOGO}" alt="Astra" height="30"
+            style="display:block;height:30px;border:0;outline:none;text-decoration:none;">
+        </span>
       </td>
       <td style="vertical-align:middle;text-align:right;">
         <span style="display:inline-block;background:rgba(255,255,255,0.16);color:#eaf1ff;
@@ -126,7 +127,7 @@ def render_email_html(subject: str, body: str) -> str:
   <tr><td style="padding:22px 34px 26px;">
     <div style="border-top:1px solid #e6ecf6;padding-top:18px;font-size:13px;color:#54607a;">
       Atenciosamente,<br>
-      <strong style="color:{_BLUE};">{_html.escape(_BRAND["product"])}</strong> — {_html.escape(_BRAND["name"])}
+      <strong style="color:{_BLUE};">Tecnologia da Informação — Infraestrutura &amp; Segurança</strong>
     </div>
   </td></tr>
 
@@ -134,7 +135,6 @@ def render_email_html(subject: str, body: str) -> str:
   <tr><td style="background:#f4f7fc;border-top:1px solid #e6ecf6;padding:22px 34px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
       <td style="font-size:11.5px;line-height:1.7;color:#6b7690;">
-        <strong style="color:{_BLUE_DEEP};font-size:12.5px;">{_html.escape(_BRAND["name"])}</strong><br>
         {_html.escape(_BRAND["address"])}<br>
         CNPJ {_html.escape(_BRAND["cnpj"])} · {_html.escape(_BRAND["phone"])}<br>
         <a href="mailto:{_BRAND["email"]}" style="color:{_BLUE_BRIGHT};text-decoration:none;">{_html.escape(_BRAND["email"])}</a>
