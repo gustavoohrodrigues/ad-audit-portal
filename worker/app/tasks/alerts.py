@@ -10,6 +10,7 @@ import hashlib
 import json
 import smtplib
 from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import httpx
@@ -18,6 +19,7 @@ from sqlalchemy import text
 from app.celery_app import celery_app
 from app.config import config
 from app.db import session_scope
+from app.email_template import render_email_html
 
 
 def _utcnow() -> datetime:
@@ -118,10 +120,12 @@ def _dispatch(severity: str, title: str, ctx: dict, target: str | None) -> list[
 
 
 def _send_email(subject: str, body: str) -> None:
-    msg = MIMEText(body, _charset="utf-8")
+    msg = MIMEMultipart("alternative")
     msg["Subject"] = f"[AD-Audit] {subject}"
     msg["From"] = config.smtp_from
     msg["To"] = ", ".join(config.smtp_to)
+    msg.attach(MIMEText(body, "plain", _charset="utf-8"))
+    msg.attach(MIMEText(render_email_html(subject, body), "html", _charset="utf-8"))
     with smtplib.SMTP(config.smtp_host, config.smtp_port, timeout=15) as server:
         if config.smtp_tls:
             server.starttls()
