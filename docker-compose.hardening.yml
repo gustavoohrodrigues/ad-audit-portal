@@ -53,11 +53,12 @@ services:
       resources:
         limits:
           pids: 512
+  # redis: sem cap_drop ALL — o entrypoint oficial roda como root e usa su-exec
+  # para baixar ao usuário 'redis', exigindo CAP_SETUID/CAP_SETGID. Com ALL o
+  # processo não sobe e o healthcheck falha.
   redis:
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
