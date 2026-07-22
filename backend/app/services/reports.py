@@ -191,6 +191,50 @@ async def prov_portal_audit(session, date_from, date_to, _f):
         for r in rows]}
 
 
+_LEGACY_OS = ("windows 7", "windows 8", "windows xp", "windows vista",
+              "server 2003", "server 2008", "server 2000")
+
+
+async def prov_computers_inventory(session, _df, _dt, _f):
+    from app.models.directory import ADComputer
+    now = _naive_now()
+    stale_cut = now - timedelta(days=settings.inactive_account_days)
+    rows = (await session.execute(
+        select(ADComputer).order_by(ADComputer.operating_system, ADComputer.sam_account_name)
+    )).scalars().all()
+    out: list[dict] = []
+    os_counts: dict[str, int] = {}
+    legacy = stale = disabled = 0
+    for c in rows:
+        osname = c.operating_system or "Desconhecido"
+        os_counts[osname] = os_counts.get(osname, 0) + 1
+        low = (c.operating_system or "").lower()
+        is_legacy = any(tag in low for tag in _LEGACY_OS)
+        is_stale = bool(c.last_logon_timestamp and c.last_logon_timestamp < stale_cut)
+        legacy += is_legacy
+        stale += is_stale
+        disabled += bool(c.is_disabled)
+        out.append({
+            "sam_account_name": c.sam_account_name,
+            "dns_host_name": c.dns_host_name,
+            "operating_system": osname,
+            "legado": "Sim" if is_legacy else "",
+            "criado_em": _iso(c.when_created),
+            "ultimo_logon": _iso(c.last_logon_timestamp),
+            "obsoleto": "Sim" if is_stale else "",
+            "status": "Desabilitado" if c.is_disabled else "Ativo",
+        })
+    top_os = sorted(os_counts.items(), key=lambda kv: kv[1], reverse=True)
+    return {"rows": out, "summary": {
+        "total_maquinas": len(rows),
+        "sistemas_operacionais": len(os_counts),
+        "legado": legacy,
+        "obsoletas": stale,
+        "desabilitadas": disabled,
+        "principais_sos": " · ".join(f"{k} ({v})" for k, v in top_os[:5]),
+    }}
+
+
 async def prov_posture(session, _df, _dt, _f):
     from app.services.posture import compute_posture_counts, compute_security_score
     score = await compute_security_score(session)
@@ -241,6 +285,14 @@ REPORTS: dict[str, ReportDef] = {
                   [("sam_account_name", "Conta"), ("display_name", "Nome"), ("departamento", "Depto"),
                    ("ultimo_logon", "Últ. logon"), ("privilegiada", "Priv.")],
                   prov_inactive),
+        ReportDef("computers_inventory", "Inventário de Máquinas e Sistemas Operacionais",
+                  "Computadores do AD com SO, criação, último logon, legado e obsoletas.",
+                  "Inventário", "computer",
+                  [("sam_account_name", "Máquina"), ("dns_host_name", "DNS"),
+                   ("operating_system", "Sistema Operacional"), ("legado", "Legado"),
+                   ("criado_em", "Criado em"), ("ultimo_logon", "Últ. logon"),
+                   ("obsoleto", "Obsoleto"), ("status", "Status")],
+                  prov_computers_inventory, summary=True, capability="dashboard:read"),
         ReportDef("privileged_groups", "Grupos Privilegiados",
                   "Grupos privilegiados e seus membros.",
                   "Identidade", "groups",

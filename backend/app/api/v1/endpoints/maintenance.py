@@ -26,17 +26,24 @@ async def status(
 async def cleanup(
     request: Request,
     vacuum: bool | None = None,
+    full: bool = False,
+    raw_days: int | None = None,
     session: AsyncSession = Depends(get_session),
     user: CurrentUser = Depends(require_role(Role.administrator)),
 ) -> dict:
-    """Executa a limpeza/retenção do banco agora. Protegido contra concorrência."""
+    """Executa a limpeza/retenção do banco agora. Protegido contra concorrência.
+
+    - full=true: VACUUM FULL (encolhe o arquivo em disco; lock exclusivo breve).
+    - raw_days: horizonte do JSON bruto para esta execução (menor = libera mais).
+    """
     lock = await redis_client.set("maintenance:cleanup:lock", "1", nx=True, ex=1800)
     if not lock:
         return {"ok": False, "message": "Uma limpeza já está em andamento"}
     try:
-        stats = await maintenance.run_cleanup(session, vacuum=vacuum)
+        stats = await maintenance.run_cleanup(session, vacuum=vacuum, full=full, raw_days=raw_days)
         await record_audit(
-            session, actor=user.username, actor_role=user.role, action="db_cleanup",
+            session, actor=user.username, actor_role=user.role,
+            action="db_cleanup_full" if full else "db_cleanup",
             resource="maintenance", ip_address=request.client.host if request.client else None,
             detail=stats,
         )

@@ -158,12 +158,24 @@ Além da retenção, o portal oferece manutenção ativa do PostgreSQL para evit
 Formas de disparar:
 
 ```bash
-# 1) UI (admin): página "Capacidade & Performance" → "Executar limpeza agora"
-# 2) API (admin): POST /api/v1/admin/maintenance/cleanup  (audita ação db_cleanup)
+# 1) UI (admin): página "Capacidade & Performance" → seção "Manutenção do Banco":
+#    - campo "Limpar JSON bruto de eventos com mais de N dias" (libera volume)
+#    - "Executar limpeza"           → purga + VACUUM ANALYZE
+#    - "Recuperar espaço (VACUUM FULL)" → encolhe o arquivo em disco de fato
+# 2) API (admin): POST /api/v1/admin/maintenance/cleanup?full=true&raw_days=7
+#    (audita db_cleanup / db_cleanup_full)
 #    Status:       GET  /api/v1/admin/maintenance/status
 # 3) Host cron (VACUUM ANALYZE nas tabelas de maior rotatividade):
 ./scripts/db-maintenance.sh
 ```
+
+> **Reduzir o tamanho de fato:** o maior consumo é o `raw_event_json` do
+> `normalized_events`. Um `VACUUM` comum apenas marca o espaço como reutilizável
+> — **não** encolhe o arquivo. Para devolver espaço ao SO:
+> 1. Reduza o horizonte do JSON bruto (`raw_days` na UI, ou `EVENT_RAW_RETENTION_DAYS`
+>    no `.env`) para esvaziar o JSON de eventos além desse período; e
+> 2. rode **VACUUM FULL** (botão "Recuperar espaço" ou `?full=true`), que reescreve
+>    a tabela e libera o disco (lock exclusivo breve).
 
 Exemplo de cron no host (03h, complementando a retenção automática do worker):
 

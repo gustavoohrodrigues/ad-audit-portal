@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
 import { Icon } from '@/components/icons'
-import { fmtDate } from '@/lib/format'
+import { fmtDate, fmtBytes } from '@/lib/format'
 import { useAuth } from '@/hooks/useAuth'
 
 interface CapacityData {
@@ -19,6 +19,7 @@ interface CapacityData {
 }
 
 interface MaintStatus {
+  database_bytes: number
   tables: { table: string; bytes: number; rows: number; dead_rows: number }[]
   policies: { data_type: string; retention_days: number; last_purge_at?: string }[]
   config: Record<string, unknown>
@@ -29,6 +30,7 @@ export function Capacity() {
   const { can } = useAuth()
   const isAdmin = can('*')
   const [cleanMsg, setCleanMsg] = useState('')
+  const [rawDays, setRawDays] = useState<string>('')
   const { data, isLoading } = useQuery({
     queryKey: ['capacity'],
     queryFn: () => api.get<CapacityData>('/admin/capacity'),
@@ -40,15 +42,31 @@ export function Capacity() {
     refetchInterval: 30000,
   })
   const cleanup = useMutation({
-    mutationFn: () => api.post<{ stats: Record<string, number> }>('/admin/maintenance/cleanup'),
+    mutationFn: (opts: { full?: boolean; raw_days?: number }) => {
+      const p = new URLSearchParams()
+      if (opts.full) p.set('full', 'true')
+      if (opts.raw_days != null) p.set('raw_days', String(opts.raw_days))
+      const qs = p.toString()
+      return api.post<{ stats: Record<string, number | string> }>(`/admin/maintenance/cleanup${qs ? '?' + qs : ''}`)
+    },
     onSuccess: (r) => {
       const s = r.stats || {}
-      setCleanMsg(`Limpeza concluída — eventos: ${s.events_deleted ?? 0}, JSON bruto: ${s.raw_json_cleared ?? 0}, auditoria: ${s.audit_deleted ?? 0}, notificações: ${s.notifications_deleted ?? 0}, VACUUM: ${s.vacuum ? 'sim' : 'não'}.`)
+      const n = (k: string) => Number(s[k] ?? 0)
+      let msg = `Limpeza concluída — JSON bruto limpo: ${n('raw_json_cleared')}, eventos: ${n('events_deleted')}, auditoria: ${n('audit_deleted')}, notificações: ${n('notifications_deleted')}.`
+      if (n('vacuum')) msg += ` Espaço recuperado: ${fmtBytes(n('bytes_reclaimed'))}${n('vacuum_full') ? ' (VACUUM FULL)' : ''}.`
+      else if (s.vacuum_error) msg += ` VACUUM falhou: ${s.vacuum_error}`
+      setCleanMsg(msg)
       qc.invalidateQueries({ queryKey: ['maint-status'] })
       qc.invalidateQueries({ queryKey: ['capacity'] })
     },
     onError: (e) => setCleanMsg('Falha: ' + (e as Error).message),
   })
+  const runCleanup = (full: boolean) => {
+    if (full && !window.confirm('VACUUM FULL reescreve as tabelas grandes e aplica um lock exclusivo breve (a aplicação pode ficar lenta por alguns segundos). Recupera espaço em disco de fato. Continuar?')) return
+    setCleanMsg('')
+    const rd = rawDays.trim() === '' ? undefined : Math.max(0, parseInt(rawDays, 10))
+    cleanup.mutate({ full, raw_days: rd })
+  }
 
   if (isLoading || !data) return <Loading />
   const hits = Number(data.redis.keyspace_hits || 0)
@@ -109,18 +127,40 @@ export function Capacity() {
 
       {/* Manutenção do banco */}
       <Card title="Manutenção do Banco">
-        <div className="row" style={{ marginBottom: 12 }}>
-          <span className="muted" style={{ fontSize: 13 }}>
-            Limpeza por retenção (purge em lotes) + recuperação de espaço (VACUUM). Evita crescimento descontrolado e sobrecarga.
-          </span>
-          <span className="spacer" />
-          {isAdmin && (
-            <button className="primary btn-icon" disabled={cleanup.isPending} onClick={() => { setCleanMsg(''); cleanup.mutate() }}>
-              <Icon name="trash" size={15} /> {cleanup.isPending ? 'Executando…' : 'Executar limpeza agora'}
-            </button>
-          )}
+        <div className="row" style={{ marginBottom: 12, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <div className="muted" style={{ fontSize: 13 }}>
+              Limpeza por retenção (purge em lotes) + recuperação de espaço. O maior consumo vem do
+              JSON bruto dos eventos — reduza o horizonte abaixo para liberar volume, e use
+              <b> VACUUM FULL</b> para encolher o arquivo em disco de fato.
+            </div>
+            {maint.data && (
+              <div className="row" style={{ gap: 18, marginTop: 8, fontSize: 12 }}>
+                <span className="muted">Banco: <b className="mono">{fmtBytes(maint.data.database_bytes)}</b></span>
+                <span className="muted">Retenção JSON bruto atual: <b className="mono">{String(maint.data.config.raw_retention_days)}d</b></span>
+              </div>
+            )}
+          </div>
         </div>
-        {cleanMsg && <div className="muted" style={{ fontSize: 12, marginBottom: 10, color: cleanMsg.startsWith('Falha') ? 'var(--critical)' : 'var(--low)' }}>{cleanMsg}</div>}
+        {isAdmin && (
+          <div className="row" style={{ gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <label className="muted" style={{ fontSize: 12 }}>Limpar JSON bruto de eventos com mais de</label>
+            <input
+              type="number" min={0} value={rawDays} onChange={(e) => setRawDays(e.target.value)}
+              placeholder={String(maint.data?.config.raw_retention_days ?? '')}
+              style={{ width: 70, textAlign: 'center' }}
+            />
+            <span className="muted" style={{ fontSize: 12 }}>dias (vazio = política padrão)</span>
+            <span className="spacer" />
+            <button className="btn-icon" disabled={cleanup.isPending} onClick={() => runCleanup(false)}>
+              <Icon name="trash" size={15} /> {cleanup.isPending ? 'Executando…' : 'Executar limpeza'}
+            </button>
+            <button className="primary btn-icon" disabled={cleanup.isPending} onClick={() => runCleanup(true)}>
+              <Icon name="zap" size={15} /> Recuperar espaço (VACUUM FULL)
+            </button>
+          </div>
+        )}
+        {cleanMsg && <div className="muted" style={{ fontSize: 12, marginBottom: 10, color: cleanMsg.startsWith('Falha') || cleanMsg.includes('falhou') ? 'var(--critical)' : 'var(--low)' }}>{cleanMsg}</div>}
         {maint.data && (
           <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="table-wrap">

@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
-import type { ADUser } from '@/types'
+import { ScoreGauge } from '@/components/widgets'
+import type { ADUser, SecurityScore } from '@/types'
 
 interface Category { key: string; label: string; count: number; severity: string }
 interface Summary { total_accounts: number; categories: Category[] }
@@ -20,6 +21,11 @@ export function SecurityPosture() {
     queryFn: () => api.get<Summary>('/inventory/summary'),
     refetchInterval: 60000,
   })
+  const score = useQuery({
+    queryKey: ['sec-score-posture'],
+    queryFn: () => api.get<SecurityScore>('/dashboard/security-score'),
+    refetchInterval: 60000,
+  })
   const accounts = useQuery({
     queryKey: ['inv-accounts', active?.key],
     queryFn: () => api.get<{ label: string; count: number; items: ADUser[] }>(`/inventory/accounts?category=${active!.key}`),
@@ -29,17 +35,51 @@ export function SecurityPosture() {
   if (summary.isLoading || !summary.data) return <Loading />
   const d = summary.data
   const pie = d.categories.filter((c) => c.count > 0 && !['disabled'].includes(c.key)).slice(0, 8)
+  const maxImpact = Math.max(1, ...(score.data?.factors || []).map((f) => f.impact))
 
   return (
     <>
-      <div className="topbar">
-        <div>
-          <div className="page-title">Postura de Segurança</div>
-          <div className="page-sub">{d.total_accounts} contas sincronizadas · clique numa categoria para investigar</div>
+      {/* HERO */}
+      <div className="hero">
+        <div className="hero-scan" />
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div>
+            <h1>Postura de <span className="accent-text">Segurança</span></h1>
+            <div className="page-sub" style={{ marginTop: 4 }}>
+              {d.total_accounts} contas sincronizadas · clique numa categoria para investigar
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 320px' }}>
+      {/* Score + fatores */}
+      <div className="grid" style={{ gridTemplateColumns: '300px 1fr' }}>
+        <Card title="Security Score">
+          {score.data ? <ScoreGauge score={score.data.score} grade={score.data.grade} /> : <Loading />}
+        </Card>
+        <Card title="Fatores que pesam na nota">
+          {!score.data && <Loading />}
+          {score.data && score.data.factors.map((f) => (
+            <div key={f.label} style={{ marginBottom: 10 }}>
+              <div className="row" style={{ marginBottom: 3, fontSize: 12 }}>
+                <Badge kind={f.severity}>{f.severity}</Badge>
+                <span style={{ flex: 1 }}>{f.label}</span>
+                <span className="mono muted">{f.count}</span>
+                <span className="mono" style={{ marginLeft: 10, color: SEV_COLOR[f.severity] }}>-{f.impact}</span>
+              </div>
+              <div className="riskbar-track">
+                <div className="riskbar-fill" style={{ width: `${(f.impact / maxImpact) * 100}%`, background: SEV_COLOR[f.severity] }} />
+              </div>
+            </div>
+          ))}
+          {score.data && !score.data.factors.length && (
+            <div className="muted">Nenhum fator de risco relevante. Excelente postura.</div>
+          )}
+        </Card>
+      </div>
+
+      {/* Categorias + distribuição */}
+      <div className="grid" style={{ gridTemplateColumns: '1fr 320px', marginTop: 16 }}>
         <div className="grid kpi-row">
           {d.categories.map((c) => (
             <button
