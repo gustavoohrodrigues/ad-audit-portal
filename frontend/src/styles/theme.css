@@ -589,3 +589,49 @@ tr:hover td { background: var(--bg-2); }
 .help-item .hi-t { font-weight: 600; font-size: 13px; }
 .help-item .hi-d { color: var(--text-2); font-size: 12px; line-height: 1.5; }
 .help-item a { font-size: 12px; }
+
+/* ==================================================================
+   FAQ interativo — cena 3D por módulo (ícone central + satélites)
+   ================================================================== */
+.faq-shell { display: grid; grid-template-columns: 250px 1fr; gap: 16px; align-items: start; }
+.faq-list { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 16px; }
+.faq-tab {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid transparent; background: transparent; color: var(--text-1);
+  cursor: pointer; font-size: 13px; text-align: left; transition: all 0.15s; box-shadow: none;
+}
+.faq-tab:hover { background: var(--bg-2); color: var(--text-0); transform: none; box-shadow: none; border-color: var(--border); }
+.faq-tab.active { background: var(--grad-red-soft); color: var(--accent-2); border-color: var(--border-bright); font-weight: 600; }
+.faq-tab svg { flex-shrink: 0; }
+
+.faq-panel { animation: fade-up 0.4s ease both; }
+.faq-stage { position: relative; perspective: 850px; height: 240px; display: grid; place-items: center; overflow: hidden; }
+.faq-stage::before {
+  content: ''; position: absolute; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, var(--glow), transparent 70%); opacity: 0.25; filter: blur(6px);
+}
+.faq-orbit { position: absolute; width: 0; height: 0; transform-style: preserve-3d; animation: faq-spin 12s linear infinite; }
+@keyframes faq-spin { to { transform: rotateY(360deg); } }
+.faq-sat {
+  position: absolute; width: 46px; height: 46px; margin: -23px; display: grid; place-items: center;
+  border-radius: 13px; border: 1px solid var(--border-bright); background: var(--grad-red-soft);
+  color: var(--accent-2); box-shadow: inset 0 0 14px var(--glow); backface-visibility: visible;
+}
+.faq-sat.s0 { transform: rotateY(0deg) translateZ(100px); }
+.faq-sat.s1 { transform: rotateY(90deg) translateZ(100px); }
+.faq-sat.s2 { transform: rotateY(180deg) translateZ(100px); }
+.faq-sat.s3 { transform: rotateY(270deg) translateZ(100px); }
+.faq-core {
+  position: relative; z-index: 2; width: 92px; height: 92px; display: grid; place-items: center;
+  border-radius: 22px; color: #fff; background: var(--grad-red); box-shadow: 0 0 34px var(--glow);
+  animation: faq-float 3.2s ease-in-out infinite;
+}
+@keyframes faq-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.faq-title { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.faq-tagline { color: var(--accent-2); font-size: 13px; margin-bottom: 10px; }
+.faq-points { list-style: none; padding: 0; margin: 12px 0; }
+.faq-points li { display: flex; gap: 9px; padding: 6px 0; font-size: 13px; color: var(--text-1); animation: fade-up 0.4s ease both; }
+.faq-points li svg { color: var(--low); flex-shrink: 0; margin-top: 2px; }
+
+@media (max-width: 860px) { .faq-shell { grid-template-columns: 1fr; } .faq-list { position: static; flex-direction: row; flex-wrap: wrap; } }
+@media (prefers-reduced-motion: reduce) { .faq-orbit, .faq-core, .faq-stage::before { animation: none; } }

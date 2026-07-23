@@ -1,118 +1,186 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui'
 import { Icon, IconName } from '@/components/icons'
 
-interface Feat { icon: IconName; title: string; desc: string; to?: string }
-interface Section { icon: IconName; title: string; items: Feat[] }
+interface Mod {
+  id: string
+  icon: IconName
+  sats: IconName[]      // ícones que orbitam na animação 3D
+  title: string
+  tagline: string
+  points: string[]
+  to: string
+}
 
-const SECTIONS: Section[] = [
+const MODULES: Mod[] = [
   {
-    icon: 'dashboard', title: 'Operação',
-    items: [
-      { icon: 'dashboard', title: 'Dashboard', desc: 'KPIs, Security Score, tendências (sparklines) e falhas por hora. Exporta PDF com gráficos SVG.', to: '/' },
-      { icon: 'health', title: 'Saúde do Ambiente', desc: 'Health checks estilo Ceph (OK/WARN/ERR) com donut e alertas.', to: '/health' },
-      { icon: 'lock', title: 'Bloqueios', desc: 'Investigação de bloqueios de conta com origem e playbooks.', to: '/lockouts' },
-      { icon: 'list', title: 'Eventos', desc: 'Eventos normalizados do AD/WEF com filtros e correlação.', to: '/events' },
-      { icon: 'alert', title: 'Alertas', desc: 'Fila de alertas (inclui achados de scan) com dedup e triagem.', to: '/alerts' },
-    ],
+    id: 'dashboard', icon: 'dashboard', sats: ['alert', 'lock', 'posture', 'list'],
+    title: 'Dashboard', tagline: 'Centro de Operações de Identidade',
+    points: [
+      'KPIs ao vivo: bloqueios, falhas de auth, alertas críticos, contas privilegiadas.',
+      'Security Score com tendência e sparklines de 14 dias.',
+      'Falhas de autenticação por hora e rankings.',
+      'Exporta relatório em PDF com gráficos SVG (donut + sparklines).',
+    ], to: '/',
   },
   {
-    icon: 'posture', title: 'Identidade & Active Directory',
-    items: [
-      { icon: 'posture', title: 'Postura de Segurança', desc: 'Score A–F, fatores de risco e distribuição (donut interativo). Exporta PDF.', to: '/posture' },
-      { icon: 'users', title: 'Usuários', desc: 'Busca e detalhe de contas do AD (somente leitura).', to: '/search' },
-      { icon: 'groups', title: 'Grupos', desc: 'Grupos privilegiados e membros.', to: '/groups' },
-      { icon: 'computer', title: 'Computadores', desc: 'Inventário de máquinas com distribuição de SO e legado.', to: '/computers' },
-      { icon: 'star', title: 'Watchlists', desc: 'Monitore entidades específicas.', to: '/watchlists' },
-    ],
+    id: 'health', icon: 'health', sats: ['check', 'alert', 'bell', 'dot'],
+    title: 'Saúde do Ambiente', tagline: 'Health checks estilo Ceph',
+    points: [
+      'Status geral OK / WARN / ERR com donut de distribuição.',
+      'Checks com severidade, detalhe e link para investigar.',
+      'Alimenta o sino e os alertas automáticos do Google Chat.',
+    ], to: '/health',
   },
   {
-    icon: 'target', title: 'Segurança Ofensiva & Scan',
-    items: [
-      { icon: 'target', title: 'Superfície de Ataque', desc: 'Kerberoasting, AS-REP e contas administrativas de risco.', to: '/attack-surface' },
-      { icon: 'target', title: 'Scan de Segurança (nmap)', desc: '12 perfis: rápido, serviços, exposição de AD, SMB, RDP, DNS, web, vuln SMB (MS17-010), discovery, full. Inspetor de TLS. Allowlist + RBAC + auditoria.', to: '/security-scan' },
-    ],
+    id: 'lockouts', icon: 'lock', sats: ['users', 'computer', 'list', 'target'],
+    title: 'Bloqueios de Conta', tagline: 'Investigação com origem e playbooks',
+    points: [
+      'Origem do bloqueio correlacionada (DC, computador, IP).',
+      'Playbooks guiados de investigação.',
+      'Histórico e recorrência por conta.',
+    ], to: '/lockouts',
   },
   {
-    icon: 'list', title: 'Security Operations (Findings)',
-    items: [
-      { icon: 'dashboard', title: 'Visão Geral', desc: 'Postura consolidada: por severidade, categoria e ativo + fila “corrigir primeiro”.', to: '/security/overview' },
-      { icon: 'alert', title: 'Vulnerabilidades', desc: 'CVEs de OS/dependências normalizados, com risco e links NVD/MITRE.', to: '/security/findings?category=vulnerability' },
-      { icon: 'lock', title: 'Segredos expostos', desc: 'Segredos detectados — sempre mascarados, nunca exibidos crus.', to: '/security/findings?category=secret' },
-      { icon: 'capacity', title: 'Contêineres', desc: 'Vulnerabilidades e misconfig de imagens Docker.', to: '/security/findings?asset_type=image' },
-      { icon: 'settings', title: 'Misconfigurações & Hardening', desc: 'Dockerfile, config e hardening Linux (Lynis).', to: '/security/findings?category=misconfiguration' },
-      { icon: 'download', title: 'Ingestão multi-scanner', desc: 'Importe Trivy, Grype, Gitleaks, npm audit, pip-audit e Lynis. Dedup automático + auditoria.', to: '/security/findings' },
-    ],
+    id: 'posture', icon: 'posture', sats: ['star', 'lock', 'users', 'alert'],
+    title: 'Postura de Segurança', tagline: 'Score A–F e distribuição de risco',
+    points: [
+      'Security Score com gauge e fatores de risco.',
+      'Donut interativo de distribuição por categoria.',
+      'Explorador de categorias com drill-down por conta.',
+      'Exporta PDF com pizza e tabela de fatores.',
+    ], to: '/posture',
   },
   {
-    icon: 'megaphone', title: 'Comunicação & Integrações',
-    items: [
-      { icon: 'megaphone', title: 'Central de Mensagens', desc: 'Avisos a usuários filtrados (ex.: senha a expirar). RBAC + confirmação + auditoria.', to: '/message-center' },
-      { icon: 'mail', title: 'Notificações', desc: 'Histórico de entregas (e-mail com identidade Astra).', to: '/notifications' },
-      { icon: 'integrations', title: 'Integrações', desc: 'Google Chat, Teams/Slack/Discord, GLPI, webhooks.', to: '/integrations' },
-    ],
+    id: 'attack', icon: 'target', sats: ['lock', 'users', 'star', 'alert'],
+    title: 'Superfície de Ataque', tagline: 'Kerberoasting, AS-REP e admins de risco',
+    points: [
+      'Detecções explicáveis com risco, evidências e MITRE.',
+      'Contas com SPN, sem pré-auth e administrativas obsoletas.',
+    ], to: '/attack-surface',
   },
   {
-    icon: 'settings', title: 'Sistema & Observabilidade',
-    items: [
-      { icon: 'report', title: 'Relatórios', desc: '12+ tipos (postura, superfície, contas, inventário de máquinas…). Export CSV/PDF.', to: '/reports' },
-      { icon: 'capacity', title: 'Pontos de Coleta', desc: 'Atividade por Domain Controller, fontes e checkpoints de ingestão.', to: '/collection-points' },
-      { icon: 'capacity', title: 'Capacidade & Manutenção', desc: 'Tamanho do banco, ingestão, limpeza e VACUUM FULL.', to: '/capacity' },
-      { icon: 'user', title: 'Aparência (Tema)', desc: 'Temas Devils Never Cry (vermelho) e Bury the Light (azul). A interface inteira adapta.', to: '/account' },
-      { icon: 'settings', title: 'Admin', desc: 'Diagnósticos e administração.', to: '/admin' },
-    ],
+    id: 'scan', icon: 'target', sats: ['lock', 'computer', 'integrations', 'refresh'],
+    title: 'Scan de Segurança (nmap)', tagline: '12 perfis + inspetor de TLS',
+    points: [
+      'Rápido, serviços, exposição de AD, SMB, RDP, DNS, web, vuln SMB (MS17-010), discovery, full.',
+      'Inspetor de certificado/TLS (validade, protocolo fraco, auto-assinado).',
+      'Allowlist de alvos + RBAC + confirmação + auditoria.',
+      'Achados viram alertas e findings normalizados; exporta relatório.',
+    ], to: '/security-scan',
+  },
+  {
+    id: 'secops', icon: 'list', sats: ['alert', 'lock', 'capacity', 'download'],
+    title: 'Security Operations', tagline: 'Central de findings multi-scanner',
+    points: [
+      'Ingestão de Trivy, Grype, Gitleaks, npm audit, pip-audit e Lynis.',
+      'Modelo normalizado, dedup por fingerprint e risco por contexto.',
+      'Vulnerabilidades, segredos (mascarados), contêineres, misconfig e hardening.',
+      'Supressão com motivo/expiração e estado de remediação — tudo auditado.',
+    ], to: '/security/overview',
+  },
+  {
+    id: 'inventory', icon: 'users', sats: ['groups', 'computer', 'star', 'search'],
+    title: 'Inventário de Identidades', tagline: 'Usuários, grupos e máquinas',
+    points: [
+      'Busca e detalhe de contas do AD (somente leitura).',
+      'Grupos privilegiados e membros; computadores com SO/legado.',
+      'Watchlists para monitorar entidades específicas.',
+    ], to: '/search',
+  },
+  {
+    id: 'comms', icon: 'megaphone', sats: ['mail', 'integrations', 'send', 'bell'],
+    title: 'Comunicação & Integrações', tagline: 'Avisos e ChatOps',
+    points: [
+      'Central de Mensagens com filtro de contas (RBAC + confirmação + auditoria).',
+      'E-mail com identidade Astra; Google Chat, Teams/Slack/Discord, GLPI.',
+      'Histórico de notificações e entregas.',
+    ], to: '/message-center',
+  },
+  {
+    id: 'reports', icon: 'report', sats: ['download', 'posture', 'list', 'computer'],
+    title: 'Relatórios & Exportação', tagline: '12+ tipos, CSV e PDF',
+    points: [
+      'Postura, superfície de ataque, contas de serviço, inventário de máquinas…',
+      'Exportação de Dashboard/Postura em PDF com gráficos SVG.',
+    ], to: '/reports',
+  },
+  {
+    id: 'collection', icon: 'capacity', sats: ['computer', 'refresh', 'alert', 'integrations'],
+    title: 'Pontos de Coleta', tagline: 'Ingestão por Domain Controller',
+    points: [
+      'Atividade por DC (24h/7d), status ativo/ocioso/parado.',
+      'Fontes/conectores e checkpoints reais de coleta.',
+    ], to: '/collection-points',
+  },
+  {
+    id: 'system', icon: 'settings', sats: ['capacity', 'trash', 'zap', 'user'],
+    title: 'Capacidade, Manutenção & Tema', tagline: 'Observabilidade e aparência',
+    points: [
+      'Tamanho do banco, taxa de ingestão, limpeza e VACUUM FULL.',
+      'Temas Devils Never Cry (vermelho) e Bury the Light (azul) — a interface inteira adapta.',
+    ], to: '/capacity',
   },
 ]
 
-const FACE_ICONS: IconName[] = ['dashboard', 'target', 'lock', 'alert', 'posture', 'integrations']
-
 export function Help() {
+  const [active, setActive] = useState(MODULES[0].id)
+  const m = MODULES.find((x) => x.id === active) || MODULES[0]
+
   return (
     <>
       <div className="hero">
         <div className="hero-scan" />
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
-            <h1>Central de <span className="accent-text">Ajuda</span></h1>
-            <div className="page-sub" style={{ marginTop: 4 }}>Tour por todas as funcionalidades da plataforma · somente leitura no AD</div>
+            <h1>Central de <span className="accent-text">Ajuda</span> & Tour</h1>
+            <div className="page-sub" style={{ marginTop: 4 }}>Escolha um módulo → veja a explicação animada → vá direto para ele</div>
           </div>
         </div>
       </div>
 
-      {/* Hero 3D */}
-      <div className="help-stage">
-        <div className="help-cube">
-          {FACE_ICONS.map((ic, i) => (
-            <div key={i} className={`help-face f${i + 1}`}><Icon name={ic} size={34} /></div>
+      <div className="faq-shell">
+        <div className="faq-list">
+          {MODULES.map((mod) => (
+            <button key={mod.id} className={`faq-tab ${mod.id === active ? 'active' : ''}`} onClick={() => setActive(mod.id)}>
+              <Icon name={mod.icon} size={18} />
+              <span>{mod.title}</span>
+            </button>
           ))}
         </div>
-      </div>
 
-      <div className="help-grid">
-        {SECTIONS.map((s, si) => (
-          <Card key={s.title} className="help-card">
-            <div style={{ animationDelay: `${si * 60}ms` }}>
-              <h3><Icon name={s.icon} size={18} /> {s.title}</h3>
-              <div style={{ marginTop: 6 }}>
-                {s.items.map((it) => (
-                  <div className="help-item" key={it.title}>
-                    <span className="hi-ic"><Icon name={it.icon} size={17} /></span>
-                    <div style={{ flex: 1 }}>
-                      <div className="hi-t">{it.title}</div>
-                      <div className="hi-d">{it.desc}</div>
-                      {it.to && <Link to={it.to}>Abrir →</Link>}
-                    </div>
-                  </div>
+        <Card>
+          {/* key força reinício das animações ao trocar de módulo */}
+          <div className="faq-panel" key={m.id}>
+            <div className="faq-stage">
+              <div className="faq-orbit">
+                {m.sats.map((s, i) => (
+                  <span key={i} className={`faq-sat s${i}`}><Icon name={s} size={20} /></span>
                 ))}
               </div>
+              <div className="faq-core"><Icon name={m.icon} size={44} /></div>
             </div>
-          </Card>
-        ))}
+
+            <div className="faq-title">{m.title}</div>
+            <div className="faq-tagline">{m.tagline}</div>
+            <ul className="faq-points">
+              {m.points.map((p, i) => (
+                <li key={i} style={{ animationDelay: `${i * 70}ms` }}>
+                  <Icon name="check" size={16} /><span>{p}</span>
+                </li>
+              ))}
+            </ul>
+            <Link to={m.to} className="btn-icon" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 'var(--radius)', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13, background: 'var(--grad-red)', boxShadow: '0 4px 16px var(--shadow-glow)' }}>
+              <Icon name="external" size={15} /> Ir para o módulo
+            </Link>
+          </div>
+        </Card>
       </div>
 
       <div className="muted" style={{ fontSize: 11, marginTop: 16, textAlign: 'center' }}>
-        Dica: pressione <kbd style={{ fontFamily: 'var(--mono)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px' }}>Ctrl</kbd> +{' '}
-        <kbd style={{ fontFamily: 'var(--mono)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px' }}>K</kbd> para a busca global.
+        Dica: <kbd style={{ fontFamily: 'var(--mono)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px' }}>Ctrl</kbd> +{' '}
+        <kbd style={{ fontFamily: 'var(--mono)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 6px' }}>K</kbd> abre a busca global · somente leitura no AD.
       </div>
     </>
   )
