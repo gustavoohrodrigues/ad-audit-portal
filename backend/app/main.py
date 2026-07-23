@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 # validate_required_settings roda aqui: se faltar variável obrigatória, o
@@ -77,6 +78,9 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(RateLimitMiddleware)
+# Compressão gzip das respostas JSON (dashboards/relatórios) — reduz payload e
+# melhora a latência percebida. Só comprime respostas acima do limiar.
+app.add_middleware(GZipMiddleware, minimum_size=600)
 
 
 @app.exception_handler(Exception)

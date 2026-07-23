@@ -48,17 +48,35 @@ async def capacity(
         ))
     ).all()
 
-    # contagens rápidas das tabelas centrais
-    counts = {}
-    for tbl in ("normalized_events", "ad_users", "ad_groups", "ad_computers",
-                "alerts", "lockout_investigations", "internal_audit_log",
-                "notification_deliveries"):
-        try:
-            counts[tbl] = (
-                await session.execute(text(f"SELECT count(*) FROM {tbl}"))
-            ).scalar_one()
-        except Exception:  # noqa: BLE001
-            counts[tbl] = None
+    # contagens das tabelas centrais via ESTIMATIVA do planner (n_live_tup) —
+    # evita count(*) com seq scan na tabela de eventos a cada refresh (30s).
+    _tables = ["normalized_events", "ad_users", "ad_groups", "ad_computers",
+               "alerts", "lockout_investigations", "internal_audit_log",
+               "notification_deliveries"]
+    counts = {t: None for t in _tables}
+    for r in (await session.execute(text(
+        "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE relname = ANY(:t)"
+    ), {"t": _tables})).all():
+        counts[r[0]] = int(r[1])
+
+    # --- Analytics de ingestão (taxa + distribuição por tipo, últimas 24h) ---
+    async def _c(sql: str) -> int:
+        return int((await session.execute(text(sql))).scalar_one() or 0)
+
+    _base = "SELECT count(*) FROM normalized_events WHERE event_time_utc > (now() AT TIME ZONE 'UTC')"
+    ingestion = {
+        "events_1h": await _c(f"{_base} - interval '1 hour'"),
+        "events_24h": await _c(f"{_base} - interval '24 hours'"),
+        "events_7d": await _c(f"{_base} - interval '7 days'"),
+        "by_type": [
+            {"type": r[0], "count": int(r[1])}
+            for r in (await session.execute(text(
+                "SELECT event_type::text, count(*) FROM normalized_events "
+                "WHERE event_time_utc > (now() AT TIME ZONE 'UTC') - interval '24 hours' "
+                "GROUP BY event_type ORDER BY 2 DESC LIMIT 12"
+            ))).all()
+        ],
+    }
 
     # índices possivelmente não usados (idx_scan = 0)
     unused_idx = (
@@ -120,6 +138,7 @@ async def capacity(
         },
         "redis": redis_info,
         "celery_queues": queues,
+        "ingestion": ingestion,
         "config": {
             "sql_pool_size": settings.api_sql_pool_size,
             "sql_max_overflow": settings.api_sql_max_overflow,

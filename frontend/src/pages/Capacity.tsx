@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
 import { Icon } from '@/components/icons'
-import { fmtDate, fmtBytes } from '@/lib/format'
+import { fmtDate, fmtBytes, eventLabel } from '@/lib/format'
 import { useAuth } from '@/hooks/useAuth'
 
 interface CapacityData {
@@ -15,6 +15,12 @@ interface CapacityData {
   }
   redis: Record<string, string | number>
   celery_queues: Record<string, number | null>
+  ingestion: {
+    events_1h: number
+    events_24h: number
+    events_7d: number
+    by_type: { type: string; count: number }[]
+  }
   config: Record<string, unknown>
 }
 
@@ -124,6 +130,35 @@ export function Capacity() {
           ))}
         </Card>
       </div>
+
+      {/* Ingestão de eventos — taxa e distribuição */}
+      <Card title="Ingestão de Eventos — taxa e distribuição (24h)">
+        <div className="grid kpi-row" style={{ marginBottom: 14 }}>
+          <div className="card kpi-hot"><div className="kpi-value">{data.ingestion.events_1h.toLocaleString('pt-BR')}</div><div className="kpi-label">Última hora</div></div>
+          <div className="card kpi-hot"><div className="kpi-value">{data.ingestion.events_24h.toLocaleString('pt-BR')}</div><div className="kpi-label">Últimas 24h</div></div>
+          <div className="card kpi-hot"><div className="kpi-value">{Math.round(data.ingestion.events_24h / 24).toLocaleString('pt-BR')}</div><div className="kpi-label">Média por hora (24h)</div></div>
+          <div className="card kpi-hot"><div className="kpi-value">{data.ingestion.events_7d.toLocaleString('pt-BR')}</div><div className="kpi-label">Últimos 7 dias</div></div>
+        </div>
+        {data.ingestion.by_type.length === 0 && <div className="muted">Nenhum evento ingerido nas últimas 24h.</div>}
+        {data.ingestion.by_type.length > 0 && (() => {
+          const max = Math.max(...data.ingestion.by_type.map((x) => x.count), 1)
+          return (
+            <>
+              <div className="section-title" style={{ marginTop: 0 }}>Distribuição por tipo (24h)</div>
+              {data.ingestion.by_type.map((t) => (
+                <div key={t.type} style={{ marginBottom: 8 }}>
+                  <div className="row" style={{ marginBottom: 3, fontSize: 12 }}>
+                    <span>{eventLabel(t.type)}</span>
+                    <span className="spacer" />
+                    <span className="mono muted">{t.count.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="riskbar-track"><div className="riskbar-fill" style={{ width: `${(t.count / max) * 100}%` }} /></div>
+                </div>
+              ))}
+            </>
+          )
+        })()}
+      </Card>
 
       {/* Manutenção do banco */}
       <Card title="Manutenção do Banco">

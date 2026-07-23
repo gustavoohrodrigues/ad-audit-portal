@@ -7,9 +7,20 @@ from app.config import get_settings
 
 settings = get_settings()
 
-redis_client: redis.Redis = redis.from_url(
-    settings.redis_url, encoding="utf-8", decode_responses=True
+# Pool com limites e keepalive: evita esgotamento de conexões sob carga,
+# reconecta em falhas transitórias e detecta conexões mortas periodicamente.
+_pool = redis.ConnectionPool.from_url(
+    settings.redis_url,
+    encoding="utf-8",
+    decode_responses=True,
+    max_connections=64,
+    health_check_interval=30,
+    socket_timeout=5,
+    socket_connect_timeout=5,
+    socket_keepalive=True,
+    retry_on_timeout=True,
 )
+redis_client: redis.Redis = redis.Redis(connection_pool=_pool)
 
 REFRESH_PREFIX = "refresh:"
 

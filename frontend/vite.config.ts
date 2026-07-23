@@ -21,5 +21,20 @@ export default defineConfig({
       },
     },
   },
-  build: { outDir: 'dist', sourcemap: false },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    // Separa dependências pesadas em chunks próprios para cache de longo prazo;
+    // combinado com o lazy-load de rotas, reduz o JS inicial baixado.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 900,
+  },
 })

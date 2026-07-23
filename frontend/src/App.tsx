@@ -1,29 +1,33 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { lazy, Suspense, ReactNode } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Layout } from '@/components/Layout'
 import { Loading } from '@/components/ui'
 import { Login } from '@/pages/Login'
-import { Dashboard } from '@/pages/Dashboard'
-import { UserSearch } from '@/pages/UserSearch'
-import { UserDetail } from '@/pages/UserDetail'
-import { Lockouts } from '@/pages/Lockouts'
-import { LockoutDetail } from '@/pages/LockoutDetail'
-import { Events } from '@/pages/Events'
-import { Alerts } from '@/pages/Alerts'
-import { Reports } from '@/pages/Reports'
-import { Admin } from '@/pages/Admin'
-import { SecurityPosture } from '@/pages/SecurityPosture'
-import { Groups } from '@/pages/Groups'
-import { Computers } from '@/pages/Computers'
-import { Integrations } from '@/pages/Integrations'
-import { Health } from '@/pages/Health'
-import { Account } from '@/pages/Account'
-import { AttackSurface } from '@/pages/AttackSurface'
-import { Notifications } from '@/pages/Notifications'
-import { Watchlists } from '@/pages/Watchlists'
-import { Capacity } from '@/pages/Capacity'
-import { MessageCenter } from '@/pages/MessageCenter'
-import { ReactNode } from 'react'
+
+// Rotas carregadas sob demanda (code-splitting): reduz o JS inicial e adia o
+// carregamento de páginas pesadas (Recharts) até serem realmente acessadas.
+// O Dashboard também é lazy para que a tela de login não baixe os gráficos.
+const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
+const UserSearch = lazy(() => import('@/pages/UserSearch').then(m => ({ default: m.UserSearch })))
+const UserDetail = lazy(() => import('@/pages/UserDetail').then(m => ({ default: m.UserDetail })))
+const Lockouts = lazy(() => import('@/pages/Lockouts').then(m => ({ default: m.Lockouts })))
+const LockoutDetail = lazy(() => import('@/pages/LockoutDetail').then(m => ({ default: m.LockoutDetail })))
+const Events = lazy(() => import('@/pages/Events').then(m => ({ default: m.Events })))
+const Alerts = lazy(() => import('@/pages/Alerts').then(m => ({ default: m.Alerts })))
+const Reports = lazy(() => import('@/pages/Reports').then(m => ({ default: m.Reports })))
+const Admin = lazy(() => import('@/pages/Admin').then(m => ({ default: m.Admin })))
+const SecurityPosture = lazy(() => import('@/pages/SecurityPosture').then(m => ({ default: m.SecurityPosture })))
+const Groups = lazy(() => import('@/pages/Groups').then(m => ({ default: m.Groups })))
+const Computers = lazy(() => import('@/pages/Computers').then(m => ({ default: m.Computers })))
+const Integrations = lazy(() => import('@/pages/Integrations').then(m => ({ default: m.Integrations })))
+const Health = lazy(() => import('@/pages/Health').then(m => ({ default: m.Health })))
+const Account = lazy(() => import('@/pages/Account').then(m => ({ default: m.Account })))
+const AttackSurface = lazy(() => import('@/pages/AttackSurface').then(m => ({ default: m.AttackSurface })))
+const Notifications = lazy(() => import('@/pages/Notifications').then(m => ({ default: m.Notifications })))
+const Watchlists = lazy(() => import('@/pages/Watchlists').then(m => ({ default: m.Watchlists })))
+const Capacity = lazy(() => import('@/pages/Capacity').then(m => ({ default: m.Capacity })))
+const MessageCenter = lazy(() => import('@/pages/MessageCenter').then(m => ({ default: m.MessageCenter })))
 
 function Protected({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth()
@@ -34,7 +38,7 @@ function Protected({ children }: { children: ReactNode }) {
   if (me.mfa_enrollment_required && location.pathname !== '/account') {
     return <Navigate to="/account" replace />
   }
-  return <Layout>{children}</Layout>
+  return <Layout><Suspense fallback={<Loading />}>{children}</Suspense></Layout>
 }
 
 export function App() {

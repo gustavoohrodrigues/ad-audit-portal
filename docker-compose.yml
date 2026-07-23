@@ -29,7 +29,31 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    # Tuning: limite de memória + política LRU (o store de refresh token é
+    # allowlist com TTL — eviction apenas força re-login, é fail-closed e seguro),
+    # AOF leve (everysec) sem snapshots RDB, e liberação de memória em background.
+    command:
+      - "redis-server"
+      - "--requirepass"
+      - "${REDIS_PASSWORD}"
+      - "--maxmemory"
+      - "${REDIS_MAXMEMORY:-512mb}"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--appendonly"
+      - "yes"
+      - "--appendfsync"
+      - "everysec"
+      - "--save"
+      - ""
+      - "--lazyfree-lazy-eviction"
+      - "yes"
+      - "--lazyfree-lazy-expire"
+      - "yes"
+      - "--lazyfree-lazy-server-del"
+      - "yes"
+      - "--activedefrag"
+      - "yes"
     volumes:
       - redisdata:/data
     healthcheck:
