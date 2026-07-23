@@ -19,12 +19,36 @@ def _int(key: str, default: int) -> int:
         return default
 
 
+def _set(key: str, default: str) -> set[str]:
+    return {x.strip() for x in _env(key, default).split(",") if x.strip()}
+
+
+# Tipos "importantes" cujo JSON bruto vale a pena preservar (baixo volume, alto
+# valor forense). Todo o resto tem o raw_event_json descartado por padrão.
+_DEFAULT_RAW_TYPES = (
+    "account_lockout,password_reset,password_change,user_created,user_deleted,"
+    "group_member_added,group_member_removed,account_disabled,account_enabled,"
+    "account_changed,account_renamed,account_unlocked,service_installed,"
+    "ds_object_modified,ds_object_created,ds_object_deleted,special_privileges_assigned"
+)
+# Tipos descartados na ingestão (não são gravados). successful_logon (4624) é o
+# maior gerador de volume em DCs e não é consumido por nenhuma tela/relatório.
+_DEFAULT_DROP_TYPES = "successful_logon"
+
+
 class CollectorConfig:
     database_url = _env("DATABASE_URL")
     mode = _env("EVENT_COLLECTOR_MODE", "wef").lower()
     enabled = _bool("EVENT_COLLECTOR_ENABLED", True)
     batch_size = _int("EVENT_BATCH_SIZE", 500)
     poll_interval = _int("EVENT_POLL_INTERVAL_SECONDS", 60)
+
+    # ---- Política de armazenamento (controle de volume/tamanho do banco) ----
+    # Guardar o JSON bruto de todos os eventos? Padrão: não (só dos importantes).
+    store_raw = _bool("EVENT_STORE_RAW", False)
+    store_raw_types = _set("EVENT_STORE_RAW_TYPES", _DEFAULT_RAW_TYPES)
+    # Tipos ignorados por completo na ingestão (nem são gravados).
+    drop_types = _set("EVENT_DROP_TYPES", _DEFAULT_DROP_TYPES)
 
     # WEF
     wef_enabled = _bool("WEF_ENABLED", True)

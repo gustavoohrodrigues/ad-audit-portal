@@ -16,6 +16,19 @@ from app.config import config
 
 engine = create_async_engine(config.database_url, pool_pre_ping=True)
 
+# Colunas (ordem fixa) — usada para montar params uniformes para executemany.
+_COLUMNS = (
+    "event_time_utc", "ingested_at", "event_record_id", "event_id", "event_type",
+    "severity", "risk_score", "domain", "domain_controller", "target_username",
+    "target_upn", "target_sid", "actor_username", "actor_domain", "actor_sid",
+    "caller_computer", "source_host", "source_ip", "logon_id", "workstation_name",
+    "authentication_package", "status_code", "failure_reason", "collector_source",
+    "correlation_id", "raw_event_json", "is_privileged_target", "is_critical_account",
+    "created_at", "updated_at",
+)
+
+# Sem RETURNING: permite executemany (uma ida ao banco por lote) em vez de uma
+# ida por linha — elimina o gargalo/travamento de ingestão de alto volume.
 _INSERT = text(
     """
     INSERT INTO normalized_events (
@@ -36,7 +49,6 @@ _INSERT = text(
         :is_critical_account, :created_at, :updated_at
     )
     ON CONFLICT (domain_controller, event_record_id, event_id) DO NOTHING
-    RETURNING id
     """
 )
 
@@ -73,31 +85,36 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-async def insert_events(rows: list[dict[str, Any]]) -> int:
-    """Insere eventos normalizados; retorna quantos foram efetivamente gravados."""
+def _row_params(r: dict[str, Any], now: datetime) -> dict[str, Any]:
+    """Monta um dict com TODAS as colunas (chaves uniformes p/ executemany)."""
     import json
 
-    inserted = 0
+    p = {c: r.get(c) for c in _COLUMNS}
+    p["ingested_at"] = now
+    p["created_at"] = now
+    p["updated_at"] = now
+    p["severity"] = r.get("severity", "info")
+    p["risk_score"] = r.get("risk_score", 0) or 0
+    p["is_critical_account"] = r.get("is_critical_account", False)
+    p["is_privileged_target"] = r.get("is_privileged_target", False)
+    p["raw_event_json"] = json.dumps(r.get("raw_event_json") or {}, default=str)
+    return p
+
+
+async def insert_events(rows: list[dict[str, Any]]) -> int:
+    """Insere eventos em UM único executemany por lote (dedup via ON CONFLICT).
+
+    Retorna o número de linhas afetadas (aproxima os efetivamente gravados; com
+    ON CONFLICT DO NOTHING, duplicatas não contam).
+    """
+    if not rows:
+        return 0
     now = _now()
+    params = [_row_params(r, now) for r in rows]
     async with engine.begin() as conn:
-        for r in rows:
-            params = {
-                "ingested_at": now,
-                "severity": r.get("severity", "info"),
-                "risk_score": r.get("risk_score", 0),
-                "source_host": r.get("source_host"),
-                "correlation_id": r.get("correlation_id"),
-                "is_critical_account": r.get("is_critical_account", False),
-                "created_at": now,
-                "updated_at": now,
-                **r,
-                "raw_event_json": json.dumps(r.get("raw_event_json", {}), default=str),
-            }
-            params.setdefault("event_record_id", None)
-            result = await conn.execute(_INSERT, params)
-            if result.first() is not None:
-                inserted += 1
-    return inserted
+        result = await conn.execute(_INSERT, params)
+    rc = result.rowcount
+    return rc if isinstance(rc, int) and rc >= 0 else len(rows)
 
 
 async def update_checkpoint(

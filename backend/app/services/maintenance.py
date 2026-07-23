@@ -86,6 +86,16 @@ async def run_cleanup(session: AsyncSession, vacuum: bool | None = None,
     stats["raw_json_cleared"] = r.rowcount or 0
     stats["raw_horizon_days"] = raw_horizon
 
+    # 1b) eventos de RUÍDO (alto volume) além da retenção de ruído (em lotes)
+    noise_types = [t.strip() for t in settings.event_noise_types.split(",") if t.strip()]
+    if noise_types:
+        noise_cut = now - timedelta(days=settings.event_noise_retention_days)
+        stats["noise_deleted"] = await _batched_delete(
+            session, "normalized_events",
+            "event_time_utc < :cut AND event_type::text = ANY(:types)",
+            {"cut": noise_cut, "types": noise_types},
+        )
+
     # 2) eventos além da retenção total (em lotes)
     evt_cut = now - timedelta(days=settings.event_retention_days)
     stats["events_deleted"] = await _batched_delete(

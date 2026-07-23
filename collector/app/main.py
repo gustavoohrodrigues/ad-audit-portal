@@ -52,6 +52,13 @@ async def collect_once() -> None:
             continue
         if not normalized:
             continue
+        # Política de armazenamento: descarta tipos de puro volume e limpa o
+        # JSON bruto de eventos não-importantes (reduz drasticamente o banco).
+        etype = normalized.get("event_type")
+        if etype in config.drop_types:
+            continue
+        if not config.store_raw and etype not in config.store_raw_types:
+            normalized["raw_event_json"] = {}
         batch.append(normalized)
         rid = normalized.get("event_record_id") or 0
         max_record_id = max(max_record_id, rid)

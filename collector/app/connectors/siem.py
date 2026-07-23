@@ -14,8 +14,10 @@ import httpx
 from app.config import config
 from app.connectors.base import BaseConnector
 
+# 4624 (successful_logon) foi removido: é o maior gerador de volume e não é
+# consumido por nenhuma tela/relatório. Reative apenas se realmente necessário.
 _WIN_EVENT_IDS = [
-    4624, 4625, 4720, 4722, 4723, 4724, 4725, 4726, 4728, 4732, 4756,
+    4625, 4720, 4722, 4723, 4724, 4725, 4726, 4728, 4732, 4756,
     4729, 4733, 4757, 4738, 4740, 4767, 4771, 4776, 4781, 5136, 5137, 5141,
 ]
 

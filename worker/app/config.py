@@ -68,10 +68,16 @@ class WorkerConfig:
     glpi_dedup_h = _int("GLPI_DEDUP_WINDOW_HOURS", 24)
 
     # retenção
-    event_retention_days = _int("EVENT_RETENTION_DAYS", 365)
-    raw_retention_days = _int("EVENT_RAW_RETENTION_DAYS", 90)
+    event_retention_days = _int("EVENT_RETENTION_DAYS", 90)
+    raw_retention_days = _int("EVENT_RAW_RETENTION_DAYS", 14)
     audit_retention_days = _int("AUDIT_LOG_RETENTION_DAYS", 730)
     notification_retention_days = _int("NOTIFICATION_RETENTION_DAYS", 180)
+    # ruído de alto volume expurgado mais cedo
+    event_noise_retention_days = _int("EVENT_NOISE_RETENTION_DAYS", 14)
+    event_noise_types = _env("EVENT_NOISE_TYPES",
+        "failed_logon,ntlm_validation,kerberos_preauth_failed,successful_logon,"
+        "kerberos_service_ticket,kerberos_tgt_request,kerberos_ticket_renewed,"
+        "kerberos_service_ticket_failed,explicit_credential_logon")
 
 
 config = WorkerConfig

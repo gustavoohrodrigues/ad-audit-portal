@@ -105,10 +105,17 @@ class Settings(BaseSettings):
     # ---- Coleta de eventos ----
     event_collector_mode: str = "wef"
     event_collector_enabled: bool = True
-    event_retention_days: int = 365
-    event_raw_retention_days: int = 90
+    event_retention_days: int = 90
+    event_raw_retention_days: int = 14
     event_batch_size: int = 500
     event_poll_interval_seconds: int = 60
+    # Eventos de alto volume (ruído de autenticação) expurgados mais cedo.
+    event_noise_retention_days: int = 14
+    event_noise_types: str = (
+        "failed_logon,ntlm_validation,kerberos_preauth_failed,successful_logon,"
+        "kerberos_service_ticket,kerberos_tgt_request,kerberos_ticket_renewed,"
+        "kerberos_service_ticket_failed,explicit_credential_logon"
+    )
     wef_enabled: bool = True
     wef_host: str = ""
     wef_port: int = 5985

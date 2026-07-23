@@ -82,3 +82,39 @@ Documento da evolução de performance/escala do AD Audit Portal. **Fase 1
 
 > Dependência crítica de várias fases: a **coleta WEF real** (eventos vivos).
 > Priorizar a integridade do dado antes de dashboards dependentes de eventos.
+
+---
+
+## Controle de volume do banco (anti-crescimento descontrolado)
+
+Em ambientes com muito tráfego de autenticação, `normalized_events` domina o
+tamanho do banco. Três mecanismos evitam o crescimento insustentável:
+
+1. **Não gravar o JSON bruto de eventos de ruído** (`EVENT_STORE_RAW=false`). O
+   `raw_event_json` (≈2 KB/linha, vai para TOAST) é o maior consumidor. Só é
+   preservado para os tipos importantes de `EVENT_STORE_RAW_TYPES` (bloqueios,
+   trocas/resets de senha, mudanças de grupo, criação/exclusão de conta,
+   serviços instalados, mudanças no DS). O restante grava `{}`.
+
+2. **Descartar tipos de puro volume na ingestão** (`EVENT_DROP_TYPES`). Por
+   padrão, `successful_logon` (4624) — o maior gerador de volume em DCs e sem
+   consumidor no portal — não é sequer buscado nem gravado.
+
+3. **Retenção curta para ruído** (`EVENT_NOISE_RETENTION_DAYS`, padrão 14d). Os
+   eventos de autenticação de alto volume (`EVENT_NOISE_TYPES`) são expurgados
+   bem antes dos demais (`EVENT_RETENTION_DAYS`, padrão 90d). O expurgo roda no
+   worker diariamente, em lotes (`ctid`), sem travar a base.
+
+Complementos de performance:
+
+- **Ingestão em `executemany`** (um `INSERT` por lote em vez de linha a linha) —
+  elimina o gargalo/travamento sob alto volume.
+- **Autovacuum agressivo** em `normalized_events` (migration `0010`) evita bloat
+  de linhas mortas — principal causa de lentidão progressiva.
+- **Índice BRIN** em `event_time_utc` para varreduras por período eficientes.
+- Para encolher o arquivo já inchado, use **Capacidade → Recuperar espaço
+  (VACUUM FULL)** após o primeiro expurgo.
+
+> Ajuste fino: se precisar reduzir ainda mais, baixe `EVENT_NOISE_RETENTION_DAYS`
+> (ex.: 7) e mantenha `EVENT_STORE_RAW=false`. Para voltar a guardar 4624,
+> remova-o de `EVENT_DROP_TYPES` e reative o ID nos conectores.
