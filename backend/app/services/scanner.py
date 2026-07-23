@@ -67,6 +67,40 @@ PROFILES: dict[str, dict[str, Any]] = {
         "note": "Varre as 65535 portas TCP. Lento — aumente o timeout para faixas.",
         "args": ["-sT", "-T4", "-p-", "--open", "-Pn"],
     },
+    "standard": {
+        "label": "Padrão (top 1000 portas)",
+        "note": "Varredura das 1000 portas mais comuns.",
+        "args": ["-sT", "-T4", "--open", "-Pn"],
+    },
+    "scripts_default": {
+        "label": "Scripts padrão (-sC) + versões",
+        "note": "Scripts NSE padrão (seguros) + detecção de versão nas top 200.",
+        "args": ["-sT", "-T4", "-sV", "-sC", "--top-ports", "200", "--open", "-Pn"],
+    },
+    "vuln_smb": {
+        "label": "Vuln SMB (MS17-010 / MS08-067)",
+        "note": "Detecção de EternalBlue (MS17-010) e MS08-067 via NSE (não explora).",
+        "args": ["-sT", "-T4", "-p", "139,445", "--open", "-Pn",
+                 "--script", "smb-vuln-ms17-010,smb-vuln-ms08-067"],
+    },
+    "web_audit": {
+        "label": "Auditoria Web (HTTP/HTTPS)",
+        "note": "Título, headers, métodos e certificado de serviços web.",
+        "args": ["-sT", "-T4", "-sV", "-p", "80,443,8080,8443,8000", "--open", "-Pn",
+                 "--script", "http-title,http-headers,http-methods,ssl-cert"],
+    },
+    "rdp_audit": {
+        "label": "Auditoria RDP (NLA/criptografia)",
+        "note": "Verifica NLA/CredSSP e nível de criptografia do RDP (3389).",
+        "args": ["-sT", "-T4", "-sV", "-p", "3389", "--open", "-Pn",
+                 "--script", "rdp-ntlm-info,rdp-enum-encryption"],
+    },
+    "dns_audit": {
+        "label": "Auditoria DNS (recursão)",
+        "note": "Detecta recursão aberta e identifica o servidor DNS (53).",
+        "args": ["-sT", "-T4", "-sV", "-p", "53", "--open", "-Pn",
+                 "--script", "dns-recursion,dns-nsid"],
+    },
 }
 
 # Avaliação de risco por porta aberta (exposição de superfície).
@@ -175,6 +209,26 @@ def _script_risks(scripts: list[dict]) -> list[dict]:
         if sid == "smb2-security-mode" and "not required" in out:
             risks.append({"severity": "medium", "port": 445,
                           "message": "Assinatura SMB não obrigatória — habilitar signing (anti-relay)."})
+        # Vulnerabilidades SMB (detecção NSE)
+        if sid.startswith("smb-vuln") and "vulnerable" in out and "not vulnerable" not in out:
+            cve = "MS17-010 (EternalBlue)" if "ms17-010" in sid else "MS08-067"
+            risks.append({"severity": "critical", "port": 445,
+                          "message": f"VULNERÁVEL a {cve} — corrigir imediatamente."})
+        # DNS recursão aberta
+        if sid == "dns-recursion" and "recursion" in out and "enabled" in out:
+            risks.append({"severity": "medium", "port": 53,
+                          "message": "Recursão DNS aberta — restringir a redes internas."})
+        # RDP sem NLA / criptografia fraca
+        if sid == "rdp-enum-encryption" and ("rdp encryption level: low" in out or "rdp encryption level: none" in out):
+            risks.append({"severity": "high", "port": 3389,
+                          "message": "Criptografia RDP fraca — exigir TLS/NLA."})
+        if sid == "rdp-ntlm-info" and "nla" in out and "false" in out:
+            risks.append({"severity": "high", "port": 3389,
+                          "message": "RDP sem NLA — habilitar Network Level Authentication."})
+        # Métodos HTTP perigosos
+        if sid == "http-methods" and ("trace" in out or "put" in out or "delete" in out):
+            risks.append({"severity": "low", "port": 80,
+                          "message": "Métodos HTTP potencialmente perigosos (TRACE/PUT/DELETE)."})
     return risks
 
 

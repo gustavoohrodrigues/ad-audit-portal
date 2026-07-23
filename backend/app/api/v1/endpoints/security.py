@@ -97,6 +97,27 @@ async def get_scan(
     }
 
 
+@router.delete("/scans/{scan_id}")
+async def delete_scan(
+    scan_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(require_role(Role.administrator)),
+) -> dict:
+    s = await session.get(SecurityScan, scan_id)
+    if not s:
+        raise HTTPException(404, "Scan não encontrado")
+    target = s.target
+    await session.delete(s)
+    await session.commit()
+    await record_audit(
+        session, actor=user.username, actor_role=user.role, action="security_scan_delete",
+        resource=f"scan:{scan_id}", ip_address=request.client.host if request.client else None,
+        detail={"scan_id": scan_id, "target": target},
+    )
+    return {"ok": True, "deleted": scan_id}
+
+
 @router.post("/scans")
 async def create_scan(
     req: ScanRequest,

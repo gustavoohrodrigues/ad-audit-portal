@@ -73,6 +73,43 @@ export function SecurityScan() {
     onError: (e) => { setTls(null); setTlsMsg((e as Error).message) },
   })
   const expiryColor = (d?: number) => d == null ? 'var(--text-2)' : d < 0 ? 'var(--critical)' : d <= 15 ? 'var(--high)' : d <= 30 ? 'var(--medium)' : 'var(--low)'
+  const del = useMutation({
+    mutationFn: (id: number) => api.del(`/security/scans/${id}`),
+    onSuccess: (_r, id) => { qc.invalidateQueries({ queryKey: ['scans'] }); if (openId === id) setOpenId(null) },
+  })
+
+  function exportScan(d: ScanDetail) {
+    const esc = (s?: string) => (s || '').replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch] || ch))
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-deep').trim() || '#b00d22'
+    const hosts = d.result.hosts || []
+    const body = hosts.map((h) => `
+      <h2>${esc(h.hostname || h.ip)} <span class="ip">${esc(h.ip)}</span></h2>
+      ${h.risks.length ? `<ul class="risks">${h.risks.map((r) => `<li class="s-${r.severity}"><b>${r.severity}</b>${r.port ? ' :' + r.port : ''} — ${esc(r.message)}</li>`).join('')}</ul>` : ''}
+      <table><thead><tr><th>Porta</th><th>Proto</th><th>Estado</th><th>Serviço</th><th>Produto / Versão</th></tr></thead><tbody>
+      ${h.ports.map((p) => `<tr><td>${p.port}</td><td>${p.proto}</td><td>${p.state}</td><td>${esc(p.service)}</td><td>${esc([p.product, p.version].filter(Boolean).join(' '))}</td></tr>`).join('') || '<tr><td colspan="5">Sem portas abertas</td></tr>'}
+      </tbody></table>
+      ${h.scripts?.length ? h.scripts.map((s) => `<div class="sc"><code>${esc(s.id)}</code><pre>${esc(s.output)}</pre></div>`).join('') : ''}`).join('')
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Scan #${d.id} — ${esc(d.target)}</title><style>
+      *{box-sizing:border-box}body{font-family:Segoe UI,system-ui,sans-serif;color:#1a1a1a;margin:0;padding:32px;background:#fff}
+      .hd{border-bottom:3px solid ${accent};padding-bottom:12px;margin-bottom:16px}
+      .brand{font-weight:800;color:${accent};letter-spacing:1px} h1{margin:2px 0;font-size:22px} .meta{color:#666;font-size:12px}
+      h2{font-size:15px;margin:22px 0 6px;border-left:4px solid ${accent};padding-left:8px} .ip{color:#888;font-weight:400;font-size:12px}
+      table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px} th{background:#f4f4f4;text-align:left;padding:6px 9px;border-bottom:2px solid #ddd;font-size:11px;text-transform:uppercase}
+      td{padding:5px 9px;border-bottom:1px solid #eee} tr:nth-child(even) td{background:#fafafa}
+      .risks{list-style:none;padding:0;margin:6px 0} .risks li{padding:4px 8px;border-radius:5px;margin-bottom:3px;font-size:12px;background:#f7f7f7}
+      .s-critical{border-left:4px solid #d11;background:#fdecec} .s-high{border-left:4px solid #e6690b;background:#fdf1e7} .s-medium{border-left:4px solid #b8860b;background:#fbf6e6} .s-low{border-left:4px solid #2a7}
+      .sc code{color:${accent};font-size:11px} .sc pre{background:#f6f6f6;border:1px solid #eee;border-radius:5px;padding:6px 8px;font-size:11px;white-space:pre-wrap;margin:2px 0 8px}
+      .ft{margin-top:20px;color:#999;font-size:10px;border-top:1px solid #eee;padding-top:8px} .btn{background:${accent};color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer}
+      @media print{body{padding:12px}.noprint{display:none}}</style></head><body>
+      <div class="noprint" style="margin-bottom:14px"><button class="btn" onclick="window.print()">Imprimir / Salvar PDF</button></div>
+      <div class="hd"><div class="brand">AD·AUDIT</div><h1>Relatório de Scan — ${esc(d.target)}</h1>
+      <div class="meta">Perfil <b>${esc(d.profile)}</b> · ${d.hosts_up} host(s) · ${d.open_ports} portas abertas · ${d.risk_count} risco(s)<br>
+      Gerado em ${new Date(d.created_at).toLocaleString('pt-BR')}${d.requested_by ? ' · por ' + esc(d.requested_by) : ''}</div></div>
+      ${body || '<p>Nenhum host respondeu.</p>'}
+      <div class="ft">AD Audit Portal — relatório de scan de segurança · uso restrito</div></body></html>`
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
+  }
 
   if (cfg.isLoading || !cfg.data) return <Loading />
   const c = cfg.data
@@ -212,7 +249,18 @@ export function SecurityScan() {
                   <td>{s.risk_count > 0 ? <Badge kind="high">{s.risk_count}</Badge> : <span className="muted">0</span>}</td>
                   <td className="mono muted">{relative(s.created_at)}</td>
                   <td className="muted mono" style={{ fontSize: 11 }}>{s.requested_by || '—'}</td>
-                  <td><button style={{ padding: '3px 10px', fontSize: 11 }} onClick={() => setOpenId(s.id)}>Ver</button></td>
+                  <td>
+                    <div className="row" style={{ gap: 6 }}>
+                      <button style={{ padding: '3px 10px', fontSize: 11 }} onClick={() => setOpenId(s.id)}>Ver</button>
+                      <button
+                        style={{ padding: '3px 8px', fontSize: 11 }}
+                        title="Excluir scan"
+                        onClick={() => { if (window.confirm(`Excluir o scan #${s.id} (${s.target})?`)) del.mutate(s.id) }}
+                      >
+                        <Icon name="trash" size={13} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -223,7 +271,19 @@ export function SecurityScan() {
       {/* Detalhe */}
       {openId != null && (
         <Card title={`Scan #${openId}${detail.data ? ` — ${detail.data.target}` : ''}`}>
-          <button style={{ float: 'right' }} onClick={() => setOpenId(null)}>Fechar</button>
+          <div className="row" style={{ float: 'right', gap: 8 }}>
+            {detail.data && detail.data.status === 'done' && (
+              <button className="btn-icon" onClick={() => exportScan(detail.data!)}>
+                <Icon name="download" size={14} /> Exportar
+              </button>
+            )}
+            {detail.data && (
+              <button className="btn-icon" onClick={() => { if (window.confirm(`Excluir o scan #${detail.data!.id}?`)) del.mutate(detail.data!.id) }}>
+                <Icon name="trash" size={14} /> Excluir
+              </button>
+            )}
+            <button onClick={() => setOpenId(null)}>Fechar</button>
+          </div>
           {detail.isLoading && <Loading />}
           {detail.data && (
             <>
