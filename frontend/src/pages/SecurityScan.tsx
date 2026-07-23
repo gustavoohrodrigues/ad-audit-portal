@@ -19,8 +19,14 @@ interface ScanRow {
   finished_at?: string; error?: string
 }
 interface Port { port: number; proto: string; state: string; service: string; product: string; version: string }
-interface Risk { severity: string; port: number; message: string }
-interface Host { ip: string; hostname: string; ports: Port[]; risks: Risk[] }
+interface Risk { severity: string; port?: number; message: string }
+interface Script { id: string; output: string }
+interface Host { ip: string; hostname: string; ports: Port[]; scripts?: Script[]; risks: Risk[] }
+interface TlsResult {
+  host: string; port: number; tls_version?: string; cipher?: string; subject?: string; issuer?: string
+  not_before?: string; not_after?: string; days_left?: number; sans?: string[]; self_signed?: boolean
+  risks?: Risk[]; error?: string
+}
 interface ScanDetail extends ScanRow {
   summary: Record<string, number>; result: { hosts?: Host[] }
   started_at?: string
@@ -39,6 +45,10 @@ export function SecurityScan() {
   const [profile, setProfile] = useState('quick')
   const [openId, setOpenId] = useState<number | null>(null)
   const [msg, setMsg] = useState('')
+  const [tlsHost, setTlsHost] = useState('')
+  const [tlsPort, setTlsPort] = useState('636')
+  const [tls, setTls] = useState<TlsResult | null>(null)
+  const [tlsMsg, setTlsMsg] = useState('')
 
   const cfg = useQuery({ queryKey: ['scan-config'], queryFn: () => api.get<Cfg>('/security/scan-config') })
   const scans = useQuery({
@@ -57,6 +67,12 @@ export function SecurityScan() {
     onSuccess: (r) => { setMsg(''); setOpenId(r.scan_id); qc.invalidateQueries({ queryKey: ['scans'] }) },
     onError: (e) => setMsg((e as Error).message),
   })
+  const tlsCheck = useMutation({
+    mutationFn: () => api.post<TlsResult>('/security/tls-check', { host: tlsHost.trim(), port: parseInt(tlsPort, 10) || 636 }),
+    onSuccess: (r) => { setTlsMsg(''); setTls(r) },
+    onError: (e) => { setTls(null); setTlsMsg((e as Error).message) },
+  })
+  const expiryColor = (d?: number) => d == null ? 'var(--text-2)' : d < 0 ? 'var(--critical)' : d <= 15 ? 'var(--high)' : d <= 30 ? 'var(--medium)' : 'var(--low)'
 
   if (cfg.isLoading || !cfg.data) return <Loading />
   const c = cfg.data
@@ -124,6 +140,58 @@ export function SecurityScan() {
         >
           <Icon name="target" size={15} /> {launch.isPending ? 'Iniciando…' : 'Executar scan'}
         </button>
+      </Card>
+
+      {/* Verificação de TLS / Certificado */}
+      <Card title="Verificação de TLS / Certificado">
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+          Inspeciona o certificado e o protocolo de um serviço TLS (ex.: LDAPS 636, HTTPS 443). Alvo precisa estar na allowlist.
+        </div>
+        <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="field" style={{ flex: 1, minWidth: 220 }}>
+            <label>Host</label>
+            <input value={tlsHost} onChange={(e) => setTlsHost(e.target.value)} placeholder="dc01.grupo.local ou 10.1.11.204" list="scan-targets" />
+          </div>
+          <div className="field" style={{ width: 100 }}>
+            <label>Porta</label>
+            <input type="number" value={tlsPort} onChange={(e) => setTlsPort(e.target.value)} />
+          </div>
+          <button className="btn-icon" disabled={!c.enabled || tlsCheck.isPending || !tlsHost.trim()} onClick={() => tlsCheck.mutate()}>
+            <Icon name="lock" size={15} /> {tlsCheck.isPending ? 'Verificando…' : 'Verificar TLS'}
+          </button>
+        </div>
+        {tlsMsg && <div className="error" style={{ marginTop: 10 }}>{tlsMsg}</div>}
+        {tls && (
+          <div style={{ marginTop: 14 }}>
+            {tls.error ? <div className="error">Falha: {tls.error}</div> : (
+              <>
+                <div className="grid kpi-row" style={{ marginBottom: 10 }}>
+                  <div className="card kpi-hot"><div className="kpi-value" style={{ color: expiryColor(tls.days_left) }}>{tls.days_left}</div><div className="kpi-label">Dias p/ expirar</div></div>
+                  <div className="card kpi-hot"><div className="kpi-value" style={{ fontSize: 20 }}>{tls.tls_version || '—'}</div><div className="kpi-label">Protocolo</div></div>
+                  <div className="card kpi-hot"><div className="kpi-value" style={{ fontSize: 16 }}>{tls.self_signed ? 'Sim' : 'Não'}</div><div className="kpi-label">Auto-assinado</div></div>
+                </div>
+                <div style={{ fontSize: 12, lineHeight: 1.9 }}>
+                  <div><span className="muted">Assunto:</span> <span className="mono">{tls.subject}</span></div>
+                  <div><span className="muted">Emissor:</span> <span className="mono">{tls.issuer}</span></div>
+                  <div><span className="muted">Válido:</span> <span className="mono">{fmtDate(tls.not_before)} → {fmtDate(tls.not_after)}</span></div>
+                  {!!tls.sans?.length && <div><span className="muted">SANs:</span> <span className="mono">{tls.sans.join(', ')}</span></div>}
+                  {!!tls.cipher && <div><span className="muted">Cipher:</span> <span className="mono">{tls.cipher}</span></div>}
+                </div>
+                {!!tls.risks?.length && (
+                  <div style={{ marginTop: 10 }}>
+                    {tls.risks.map((r, i) => (
+                      <div key={i} className="row" style={{ gap: 8, fontSize: 12, padding: '3px 0' }}>
+                        <Badge kind={r.severity as 'low' | 'medium' | 'high' | 'critical'}>{r.severity}</Badge>
+                        <span className="muted">{r.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!tls.risks?.length && <div className="row" style={{ gap: 7, color: 'var(--low)', marginTop: 8, fontSize: 12 }}><Icon name="check" size={15} /> Sem achados de risco no certificado/protocolo.</div>}
+              </>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Histórico */}
@@ -199,6 +267,17 @@ export function SecurityScan() {
                       </tbody>
                     </table>
                   </div>
+                  {!!h.scripts?.length && (
+                    <div style={{ marginTop: 8 }}>
+                      <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>Scripts (NSE)</div>
+                      {h.scripts.map((sc, i) => (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--accent-2)' }}>{sc.id}</span>
+                          <pre style={{ margin: '2px 0 0', fontSize: 11, whiteSpace: 'pre-wrap', color: 'var(--text-1)', background: 'var(--bg-1)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>{sc.output}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {detail.data.status === 'done' && !(detail.data.result.hosts || []).length && (

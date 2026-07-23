@@ -34,6 +34,11 @@ class ScanRequest(BaseModel):
     confirm: bool = False
 
 
+class TlsCheckRequest(BaseModel):
+    host: str
+    port: int = 636
+
+
 @router.get("/scan-config")
 async def scan_config(
     session: AsyncSession = Depends(get_session),
@@ -136,3 +141,28 @@ async def create_scan(
     _bg_tasks.add(task)
     task.add_done_callback(_bg_tasks.discard)
     return {"ok": True, "scan_id": scan.id, "status": scan.status}
+
+
+@router.post("/tls-check")
+async def tls_check(
+    req: TlsCheckRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(require_role(Role.administrator)),
+) -> dict:
+    """Inspeciona o certificado/TLS de host:port (ex.: LDAPS 636). Alvo na allowlist."""
+    if not settings.scan_enabled:
+        raise HTTPException(403, "Módulo de scan desabilitado (SCAN_ENABLED=true).")
+    if not (1 <= req.port <= 65535):
+        raise HTTPException(400, "Porta inválida.")
+    ok, reason = await scanner.validate_target(req.host, session)
+    if not ok:
+        raise HTTPException(400, reason)
+    result = await scanner.check_tls(req.host.strip(), req.port)
+    await record_audit(
+        session, actor=user.username, actor_role=user.role, action="tls_check",
+        resource=f"tls:{req.host}:{req.port}",
+        ip_address=request.client.host if request.client else None,
+        detail={"host": req.host, "port": req.port, "days_left": result.get("days_left")},
+    )
+    return result

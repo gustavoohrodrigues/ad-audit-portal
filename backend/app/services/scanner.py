@@ -51,6 +51,22 @@ PROFILES: dict[str, dict[str, Any]] = {
         "args": ["-sT", "-T4", "-sV", "--open", "-Pn",
                  "-p", "21,23,53,88,135,139,389,445,464,636,3268,3269,3389,5985,5986,9389"],
     },
+    "smb_audit": {
+        "label": "Auditoria SMB (SMBv1 / assinatura)",
+        "note": "Detecta SMBv1 e assinatura não obrigatória via scripts NSE seguros.",
+        "args": ["-sT", "-T4", "-p", "139,445", "--open", "-Pn",
+                 "--script", "smb-protocols,smb2-security-mode,smb-os-discovery,smb2-time"],
+    },
+    "discovery": {
+        "label": "Descoberta de hosts (ping sweep)",
+        "note": "Lista hosts vivos numa faixa (sem varrer portas). Ideal para um /24.",
+        "args": ["-sn", "-PS22,80,135,139,389,445,3389,5985", "-T4"],
+    },
+    "full": {
+        "label": "Completo (todas as portas TCP)",
+        "note": "Varre as 65535 portas TCP. Lento — aumente o timeout para faixas.",
+        "args": ["-sT", "-T4", "-p-", "--open", "-Pn"],
+    },
 }
 
 # Avaliação de risco por porta aberta (exposição de superfície).
@@ -144,6 +160,24 @@ def _evaluate_risks(ports: list[dict]) -> list[dict]:
     return risks
 
 
+def _script_risks(scripts: list[dict]) -> list[dict]:
+    """Avalia riscos a partir da saída de scripts NSE (auditoria SMB etc.)."""
+    risks: list[dict] = []
+    for s in scripts:
+        out = (s.get("output") or "").lower()
+        sid = s.get("id", "")
+        if sid == "smb-protocols" and ("smbv1" in out or "smb1" in out or "2.02" in out and "1.0" in out):
+            risks.append({"severity": "high", "port": 445,
+                          "message": "SMBv1 habilitado — desabilitar (EternalBlue/ransomware)."})
+        if sid == "smb-protocols" and "1.0" in out:
+            risks.append({"severity": "high", "port": 445,
+                          "message": "SMB 1.0 negociável — desabilitar SMBv1."})
+        if sid == "smb2-security-mode" and "not required" in out:
+            risks.append({"severity": "medium", "port": 445,
+                          "message": "Assinatura SMB não obrigatória — habilitar signing (anti-relay)."})
+    return risks
+
+
 def _parse_nmap_xml(xml: str) -> tuple[list[dict], dict]:
     hosts: list[dict] = []
     root = ET.fromstring(xml)
@@ -174,8 +208,16 @@ def _parse_nmap_xml(xml: str) -> tuple[list[dict], dict]:
                 "version": (svc.get("version") if svc is not None else "") or "",
             })
         ports.sort(key=lambda x: x["port"])
-        risks = _evaluate_risks(ports)
-        hosts.append({"ip": addr, "hostname": hostname, "ports": ports, "risks": risks})
+        # scripts NSE (host-level e por porta)
+        scripts: list[dict] = []
+        for sc in host.findall("hostscript/script"):
+            scripts.append({"id": sc.get("id", ""), "output": (sc.get("output") or "").strip()[:1500]})
+        for p in host.findall("ports/port"):
+            for sc in p.findall("script"):
+                scripts.append({"id": sc.get("id", ""), "output": (sc.get("output") or "").strip()[:1500]})
+        risks = _evaluate_risks(ports) + _script_risks(scripts)
+        hosts.append({"ip": addr, "hostname": hostname, "ports": ports,
+                      "scripts": scripts, "risks": risks})
     summary = {
         "hosts_up": len(hosts),
         "open_ports": sum(len([p for p in h["ports"] if p["state"] == "open"]) for h in hosts),
@@ -233,3 +275,77 @@ async def run_scan_task(scan_id: int) -> None:
         scan.risk_count = summary.get("risk_count", 0)
         scan.finished_at = datetime.now(timezone.utc)
         await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Inspeção de TLS / certificado (host:port) — ação ativa, sem nmap.
+# ---------------------------------------------------------------------------
+_WEAK_TLS = {"SSLv2", "SSLv3", "TLSv1", "TLSv1.1"}
+
+
+def _tls_inspect(host: str, port: int, timeout: int) -> dict:
+    import socket
+    import ssl as _ssl
+    from datetime import datetime, timezone
+
+    ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = _ssl.CERT_NONE  # inspecionamos até certificados self-signed
+    with socket.create_connection((host, port), timeout=timeout) as sock:
+        with ctx.wrap_socket(sock, server_hostname=host) as ss:
+            der = ss.getpeercert(binary_form=True)
+            proto = ss.version() or ""
+            cipher = ss.cipher()
+
+    from cryptography import x509
+    cert = x509.load_der_x509_certificate(der)
+    now = datetime.now(timezone.utc)
+    try:
+        not_after = cert.not_valid_after_utc
+        not_before = cert.not_valid_before_utc
+    except AttributeError:  # cryptography < 42
+        not_after = cert.not_valid_after.replace(tzinfo=timezone.utc)
+        not_before = cert.not_valid_before.replace(tzinfo=timezone.utc)
+    days_left = (not_after - now).days
+    sans: list[str] = []
+    try:
+        ext = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        sans = ext.value.get_values_for_type(x509.DNSName)
+    except Exception:  # noqa: BLE001
+        pass
+
+    risks: list[dict] = []
+    if days_left < 0:
+        risks.append({"severity": "critical", "message": f"Certificado EXPIRADO há {-days_left} dias."})
+    elif days_left <= 15:
+        risks.append({"severity": "high", "message": f"Certificado expira em {days_left} dias."})
+    elif days_left <= 30:
+        risks.append({"severity": "medium", "message": f"Certificado expira em {days_left} dias."})
+    if proto in _WEAK_TLS:
+        risks.append({"severity": "high", "message": f"Protocolo TLS fraco negociado: {proto}."})
+    if now < not_before:
+        risks.append({"severity": "medium", "message": "Certificado ainda não é válido (notBefore futuro)."})
+
+    return {
+        "host": host, "port": port, "tls_version": proto,
+        "cipher": cipher[0] if cipher else None,
+        "subject": cert.subject.rfc4514_string(),
+        "issuer": cert.issuer.rfc4514_string(),
+        "not_before": not_before.isoformat(),
+        "not_after": not_after.isoformat(),
+        "days_left": days_left,
+        "sans": sans[:20],
+        "self_signed": cert.subject == cert.issuer,
+        "risks": risks,
+    }
+
+
+async def check_tls(host: str, port: int) -> dict:
+    """Inspeciona o certificado/protocolo TLS de host:port (roda em thread)."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_tls_inspect, host, port, min(settings.scan_nmap_timeout_seconds, 20)),
+            timeout=25,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"host": host, "port": port, "error": str(exc)[:300], "risks": []}

@@ -30,3 +30,6 @@ orjson==3.10.13
 
 # HTTP client (integrações: GLPI, webhook)
 httpx==0.28.1
+
+# Inspeção de certificado TLS (módulo de scan de segurança)
+cryptography==44.0.0
