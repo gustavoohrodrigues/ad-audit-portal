@@ -1,0 +1,68 @@
+{
+  "source": {
+    "type": "image",
+    "target": {
+      "userInput": "registry.local/api-gateway:2.1"
+    }
+  },
+  "matches": [
+    {
+      "vulnerability": {
+        "id": "CVE-2023-44487",
+        "severity": "High",
+        "description": "HTTP/2 Rapid Reset DoS",
+        "fix": {
+          "versions": [
+            "1.25.3"
+          ],
+          "state": "fixed"
+        },
+        "cvss": [
+          {
+            "metrics": {
+              "baseScore": 7.5
+            }
+          }
+        ],
+        "urls": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2023-44487"
+        ]
+      },
+      "artifact": {
+        "name": "nginx",
+        "version": "1.25.1",
+        "type": "deb",
+        "locations": [
+          {
+            "path": "/usr/sbin/nginx"
+          }
+        ]
+      }
+    },
+    {
+      "vulnerability": {
+        "id": "CVE-2024-6387",
+        "severity": "Critical",
+        "description": "OpenSSH regreSSHion RCE",
+        "fix": {
+          "versions": [
+            "9.8p1"
+          ],
+          "state": "fixed"
+        },
+        "cvss": [
+          {
+            "metrics": {
+              "baseScore": 8.1
+            }
+          }
+        ]
+      },
+      "artifact": {
+        "name": "openssh-server",
+        "version": "9.6p1",
+        "type": "deb"
+      }
+    }
+  ]
+}

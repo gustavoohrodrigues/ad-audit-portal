@@ -34,7 +34,7 @@ const TITLES: Record<string, string> = {
 }
 
 export function Findings() {
-  const [sp] = useSearchParams()
+  const [sp, setSp] = useSearchParams()
   const { can } = useAuth()
   const canWrite = can('*') || can('investigation:manage')
   const qc = useQueryClient()
@@ -53,6 +53,7 @@ export function Findings() {
   const [ingestEnv, setIngestEnv] = useState('production')
   const [ingestMsg, setIngestMsg] = useState('')
   const [supReason, setSupReason] = useState('')
+  const [fmt, setFmt] = useState('trivy')
 
   const params = useMemo(() => {
     const p = new URLSearchParams()
@@ -75,8 +76,8 @@ export function Findings() {
     enabled: openId != null,
   })
   const ingest = useMutation({
-    mutationFn: (content: unknown) => api.post('/security/findings/ingest', { format: 'trivy', content, environment: ingestEnv }),
-    onSuccess: (r) => { setIngestMsg(`Ingestão concluída: ${(r as { created: number }).created} novos, ${(r as { updated: number }).updated} atualizados.`); qc.invalidateQueries({ queryKey: ['findings'] }) },
+    mutationFn: (content: unknown) => api.post('/security/findings/ingest', { format: fmt, content, environment: ingestEnv }),
+    onSuccess: (r) => { setIngestMsg(`Ingestão concluída: ${(r as { created: number }).created} novos, ${(r as { updated: number }).updated} atualizados.`); qc.invalidateQueries({ queryKey: ['findings'] }); qc.invalidateQueries({ queryKey: ['findings-overview'] }) },
     onError: (e) => setIngestMsg('Falha: ' + (e as Error).message),
   })
   const suppress = useMutation({
@@ -94,11 +95,22 @@ export function Findings() {
     setIngestMsg('')
     const reader = new FileReader()
     reader.onload = () => {
-      try { ingest.mutate(JSON.parse(String(reader.result))) }
-      catch { setIngestMsg('Arquivo não é um JSON válido do Trivy.') }
+      const text = String(reader.result)
+      if (fmt === 'lynis') { ingest.mutate(text); return }   // report.dat é texto
+      try { ingest.mutate(JSON.parse(text)) }
+      catch { setIngestMsg('Arquivo não é um JSON válido para o formato selecionado.') }
     }
     reader.readAsText(f)
     e.target.value = ''
+  }
+
+  const FMT_HINT: Record<string, string> = {
+    trivy: 'trivy image -f json -o out.json IMAGEM   ·   trivy fs -f json -o out.json .',
+    grype: 'grype IMAGEM -o json > out.json',
+    gitleaks: 'gitleaks detect -f json -r out.json   (segredos são mascarados)',
+    npm_audit: 'npm audit --json > out.json',
+    pip_audit: 'pip-audit -f json -o out.json',
+    lynis: 'lynis audit system   ·   envie o /var/log/lynis-report.dat (texto)',
   }
 
   return (
@@ -113,19 +125,51 @@ export function Findings() {
         </div>
       </div>
 
+      {/* Filtros rápidos por tipo (movidos do menu para reduzir poluição) */}
+      <div className="chips" style={{ marginBottom: 14 }}>
+        {[
+          { label: 'Todos', cat: '', asset: '' },
+          { label: 'Vulnerabilidades', cat: 'vulnerability' },
+          { label: 'Segredos', cat: 'secret' },
+          { label: 'Misconfig', cat: 'misconfiguration' },
+          { label: 'Hardening', cat: 'hardening' },
+          { label: 'Exposição (scan)', cat: 'exposure' },
+          { label: 'Contêineres', asset: 'image' },
+        ].map((c) => {
+          const active = (c.cat || '') === initCategory && (c.asset || '') === initAsset
+          return (
+            <button key={c.label} onClick={() => { const p = new URLSearchParams(); if (c.cat) p.set('category', c.cat); if (c.asset) p.set('asset_type', c.asset); setSp(p); setPage(1) }}
+              style={{ padding: '4px 12px', fontSize: 12, borderColor: active ? 'var(--accent)' : undefined, color: active ? 'var(--accent-2)' : undefined }}>
+              {c.label}
+            </button>
+          )
+        })}
+      </div>
+
       {canWrite && (
-        <Card title="Ingerir resultado de scan (Trivy JSON)">
+        <Card title="Ingerir resultado de scanner">
           <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div className="field" style={{ width: 200 }}>
+            <div className="field" style={{ width: 180 }}>
+              <label>Ferramenta</label>
+              <select value={fmt} onChange={(e) => setFmt(e.target.value)}>
+                <option value="trivy">Trivy (vuln/segredo/misconfig)</option>
+                <option value="grype">Grype (vulnerabilidades)</option>
+                <option value="gitleaks">Gitleaks (segredos)</option>
+                <option value="npm_audit">npm audit (deps Node)</option>
+                <option value="pip_audit">pip-audit (deps Python)</option>
+                <option value="lynis">Lynis (hardening Linux)</option>
+              </select>
+            </div>
+            <div className="field" style={{ width: 160 }}>
               <label>Ambiente</label>
               <input value={ingestEnv} onChange={(e) => setIngestEnv(e.target.value)} placeholder="production" />
             </div>
             <button className="primary btn-icon" disabled={ingest.isPending} onClick={() => fileRef.current?.click()}>
-              <Icon name="download" size={15} /> {ingest.isPending ? 'Processando…' : 'Selecionar arquivo Trivy'}
+              <Icon name="download" size={15} /> {ingest.isPending ? 'Processando…' : 'Selecionar arquivo'}
             </button>
-            <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={onFile} />
-            <span className="muted" style={{ fontSize: 12 }}>Gere com: <span className="mono">trivy image -f json -o out.json IMAGEM</span></span>
+            <input ref={fileRef} type="file" accept=".json,.dat,.txt,application/json,text/plain" style={{ display: 'none' }} onChange={onFile} />
           </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Gere com: <span className="mono">{FMT_HINT[fmt]}</span></div>
           {ingestMsg && <div className="muted" style={{ fontSize: 12, marginTop: 8, color: ingestMsg.startsWith('Falha') ? 'var(--critical)' : 'var(--low)' }}>{ingestMsg}</div>}
         </Card>
       )}

@@ -334,6 +334,32 @@ async def run_scan_task(scan_id: int) -> None:
 
         if status == "done" and settings.scan_alerts_enabled:
             await _create_scan_alerts(session, scan, result.get("hosts", []))
+        if status == "done" and settings.scan_findings_enabled:
+            await _create_scan_findings(scan, result.get("hosts", []))
+
+
+async def _create_scan_findings(scan, hosts: list[dict]) -> None:
+    """Converte os riscos do scan em findings normalizados (central Security Ops)."""
+    from app.services.finding_core import coerce_finding
+    from app.services.finding_service import ingest_findings
+
+    canonical = []
+    for h in hosts:
+        who = h.get("hostname") or h.get("ip") or scan.target
+        for r in h.get("risks", []):
+            canonical.append(coerce_finding({
+                "source_tool": "nmap", "source_type": "host", "category": "exposure",
+                "asset_type": "host", "asset_name": who, "host_name": who,
+                "severity": r.get("severity", "medium"), "title": r.get("message", "Exposição"),
+                "evidence": {"port": r.get("port"), "scan_target": scan.target, "profile": scan.profile},
+                "remediation": r.get("message"),
+            }))
+    if not canonical:
+        return
+    async with SessionLocal() as session:
+        await ingest_findings(session, canonical, source_tool="nmap", source_format="scan",
+                              environment="infra", asset_name=scan.target,
+                              created_by=scan.requested_by)
 
 
 _SEV_MAP = {"critical": Severity.critical, "high": Severity.high,

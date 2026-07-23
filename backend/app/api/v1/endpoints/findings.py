@@ -34,7 +34,7 @@ WRITE = require_capability("investigation:manage")
 
 
 class IngestPayload(BaseModel):
-    format: Literal["trivy", "normalized"]
+    format: Literal["trivy", "grype", "gitleaks", "npm_audit", "pip_audit", "lynis", "normalized"]
     source_tool: Optional[str] = Field(default=None, max_length=64)
     environment: str = Field(default="unknown", max_length=64)
     asset_name: Optional[str] = Field(default=None, max_length=256)

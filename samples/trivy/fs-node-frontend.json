@@ -1,0 +1,34 @@
+{
+  "ArtifactName": "/srv/portal-frontend",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "package-lock.json",
+      "Class": "lang-pkgs",
+      "Type": "npm",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-4068",
+          "PkgName": "braces",
+          "InstalledVersion": "3.0.2",
+          "FixedVersion": "3.0.3",
+          "Severity": "HIGH",
+          "Title": "braces uncontrolled resource consumption",
+          "CVSS": {
+            "nvd": {
+              "V3Score": 7.5
+            }
+          }
+        },
+        {
+          "VulnerabilityID": "CVE-2022-25883",
+          "PkgName": "semver",
+          "InstalledVersion": "7.3.5",
+          "FixedVersion": "7.5.2",
+          "Severity": "MEDIUM",
+          "Title": "semver ReDoS"
+        }
+      ]
+    }
+  ]
+}

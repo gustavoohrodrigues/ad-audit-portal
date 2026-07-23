@@ -24,11 +24,7 @@ const NAV: NavGroup[] = [
   ] },
   { title: 'Security Ops', items: [
     { to: '/security/overview', label: 'Visão Geral', icon: 'dashboard', cap: 'critical:read' },
-    { to: '/security/findings', label: 'Todos os Achados', icon: 'list', cap: 'critical:read' },
-    { to: '/security/findings?category=vulnerability', label: 'Vulnerabilidades', icon: 'alert', cap: 'critical:read' },
-    { to: '/security/findings?asset_type=image', label: 'Contêineres', icon: 'capacity', cap: 'critical:read' },
-    { to: '/security/findings?category=secret', label: 'Segredos', icon: 'lock', cap: 'critical:read' },
-    { to: '/security/findings?category=misconfiguration', label: 'Misconfigurações', icon: 'settings', cap: 'critical:read' },
+    { to: '/security/findings', label: 'Achados', icon: 'list', cap: 'critical:read' },
   ] },
   { title: 'Inventário', items: [
     { to: '/search', label: 'Usuários', icon: 'users', cap: 'user:read_basic' },
@@ -53,11 +49,20 @@ export function Layout({ children }: { children: ReactNode }) {
   const { me, logout, can } = useAuth()
   const nav = useNavigate()
   const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem('nav:collapsed') === '1')
+  const [closed, setClosed] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('nav:closed') || '[]')))
 
   function toggle() {
     const v = !collapsed
     setCollapsed(v)
     localStorage.setItem('nav:collapsed', v ? '1' : '0')
+  }
+  function toggleGroup(title: string) {
+    setClosed((prev) => {
+      const next = new Set(prev)
+      next.has(title) ? next.delete(title) : next.add(title)
+      localStorage.setItem('nav:closed', JSON.stringify([...next]))
+      return next
+    })
   }
   const openSearch = () => window.dispatchEvent(new CustomEvent('open-command-palette'))
 
@@ -86,10 +91,20 @@ export function Layout({ children }: { children: ReactNode }) {
           {NAV.map((group) => {
             const items = group.items.filter((n) => can(n.cap))
             if (!items.length) return null
+            const isClosed = !collapsed && closed.has(group.title)
             return (
               <div className="nav-group" key={group.title}>
-                {!collapsed && <div className="nav-group-title">{group.title}</div>}
-                {items.map((n) => (
+                {!collapsed && (
+                  <div
+                    className="nav-group-title"
+                    onClick={() => toggleGroup(group.title)}
+                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', userSelect: 'none' }}
+                  >
+                    <span>{group.title}</span>
+                    <span style={{ fontSize: 9, opacity: 0.6, transition: 'transform .2s', transform: isClosed ? 'rotate(-90deg)' : 'none' }}>▼</span>
+                  </div>
+                )}
+                {(collapsed || !isClosed) && items.map((n) => (
                   <NavLink
                     key={n.to}
                     to={n.to}
@@ -109,6 +124,10 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="nav-spacer" />
 
         <div className="sidebar-foot">
+          <NavLink to="/help" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Ajuda' : undefined}>
+            <Icon name="help" size={18} />
+            {!collapsed && <span className="nav-label">Ajuda & Tour</span>}
+          </NavLink>
           <NotificationBell collapsed={collapsed} />
           <NavLink to="/account" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Minha Conta' : undefined}>
             <Icon name="user" size={18} />

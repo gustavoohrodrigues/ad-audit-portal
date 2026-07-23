@@ -84,3 +84,38 @@ def test_findings_routes_require_auth():
     assert client.get("/api/v1/security/findings").status_code == 401
     assert client.get("/api/v1/security/findings/overview").status_code == 401
     assert client.post("/api/v1/security/findings/ingest", json={"format": "trivy", "content": {}}).status_code == 401
+
+
+def test_grype_adapter_parses_and_enriches_cve():
+    grype = {"source": {"type": "image", "target": {"userInput": "api:1"}},
+             "matches": [{"vulnerability": {"id": "CVE-2024-6387", "severity": "Critical",
+                          "fix": {"versions": ["9.8p1"]}, "cvss": [{"metrics": {"baseScore": 8.1}}]},
+                          "artifact": {"name": "openssh", "version": "9.6p1", "type": "deb"}}]}
+    out = ad.parse_grype(grype, {})
+    assert out and out[0]["cve"] == "CVE-2024-6387" and out[0]["fixed_version"] == "9.8p1"
+    # enriquecimento de referências NVD/MITRE (sem fetch externo)
+    assert any("nvd.nist.gov" in r for r in out[0]["references"])
+
+
+def test_gitleaks_never_leaks_secret():
+    gl = [{"RuleID": "aws", "File": "a.tf", "StartLine": 1,
+           "Secret": "AKIAIOSFODNN7EXAMPLE", "Match": "key=AKIAIOSFODNN7EXAMPLE"}]
+    out = ad.parse_gitleaks(gl, {})
+    assert "AKIAIOSFODNN7EXAMPLE" not in str(out)
+    assert out[0]["category"] == "secret"
+
+
+def test_lynis_text_report_becomes_hardening_findings():
+    report = ("hostname=srv1\nhardening_index=61\n"
+              "warning[]=SSH-7408|Root login permitted|PermitRootLogin yes|Set no\n"
+              "suggestion[]=FIRE-4513|No firewall|-|Enable ufw\n")
+    out = ad.parse_lynis(report, {})
+    assert len(out) == 2
+    assert all(f["category"] == "hardening" and f["asset_type"] == "host" for f in out)
+    assert any(f["severity"] == "high" for f in out)
+
+
+def test_unsupported_format_is_rejected():
+    import pytest
+    with pytest.raises(ValueError):
+        ad.run_adapter("nao_existe", {}, {})

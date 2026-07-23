@@ -120,6 +120,15 @@ def coerce_finding(raw: dict[str, Any], defaults: dict[str, Any] | None = None) 
         refs = [refs]
     refs = [_clip(r, _MAX["str"]) for r in list(refs)[: _MAX["refs"]] if r]
 
+    # Enriquecimento de CVE: links de análise (NVD/MITRE). Apenas URLs
+    # construídas — NÃO há requisição externa (evita SSRF).
+    cve_val = _clip(d.get("cve"), 64)
+    if cve_val and cve_val.upper().startswith("CVE-"):
+        for u in (f"https://nvd.nist.gov/vuln/detail/{cve_val}",
+                  f"https://cve.mitre.org/cgi-bin/cvename.cgi?name={cve_val}"):
+            if u not in refs and len(refs) < _MAX["refs"]:
+                refs.append(u)
+
     tags = d.get("tags") or []
     if isinstance(tags, str):
         tags = [tags]

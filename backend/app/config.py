@@ -212,6 +212,7 @@ class Settings(BaseSettings):
     scan_nmap_timeout_seconds: int = 300
     scan_max_concurrent: int = 1
     scan_alerts_enabled: bool = True      # achados do scan viram alertas (sino)
+    scan_findings_enabled: bool = True    # achados do scan viram findings normalizados
 
     # ---- Security Ops / Findings ----
     findings_ingest_max_bytes: int = 20_000_000   # limite do corpo de ingestão (anti-DoS)
