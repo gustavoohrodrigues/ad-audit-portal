@@ -25,6 +25,8 @@ from app.config import get_settings
 from app.core.logging import get_logger
 from app.database import SessionLocal
 from app.models.directory import DomainController
+from app.models.enums import AlertStatus, Severity
+from app.models.ops import Alert
 from app.models.security import SecurityScan
 
 logger = get_logger(__name__)
@@ -329,6 +331,42 @@ async def run_scan_task(scan_id: int) -> None:
         scan.risk_count = summary.get("risk_count", 0)
         scan.finished_at = datetime.now(timezone.utc)
         await session.commit()
+
+        if status == "done" and settings.scan_alerts_enabled:
+            await _create_scan_alerts(session, scan, result.get("hosts", []))
+
+
+_SEV_MAP = {"critical": Severity.critical, "high": Severity.high,
+            "medium": Severity.medium, "low": Severity.low, "info": Severity.info}
+_SEV_SCORE = {"critical": 95, "high": 80, "medium": 55, "low": 30, "info": 10}
+
+
+async def _create_scan_alerts(session, scan, hosts: list[dict]) -> None:
+    """Converte achados de risco do scan em alertas (dedup por chave estável)."""
+    created = 0
+    for h in hosts:
+        who = h.get("hostname") or h.get("ip") or scan.target
+        for r in h.get("risks", []):
+            dk = f"scan:{h.get('ip') or who}:{r.get('port', '')}:{r['message'][:48]}"
+            exists = (await session.execute(
+                select(Alert).where(Alert.dedup_key == dk, Alert.status == AlertStatus.open)
+            )).first()
+            if exists:
+                continue
+            sev = r.get("severity", "medium")
+            session.add(Alert(
+                title=f"[Scan] {who}: {r['message'][:110]}",
+                description=f"Alvo {scan.target} · porta {r.get('port', '-')} · perfil {scan.profile}",
+                severity=_SEV_MAP.get(sev, Severity.medium),
+                risk_score=_SEV_SCORE.get(sev, 50),
+                status=AlertStatus.open, dedup_key=dk,
+                context={"host": h.get("ip") or who, "port": r.get("port"),
+                         "scan_id": scan.id, "target": scan.target, "source": "security_scan"},
+            ))
+            created += 1
+    if created:
+        await session.commit()
+        logger.info("Scan %s gerou %d alerta(s)", scan.id, created)
 
 
 # ---------------------------------------------------------------------------

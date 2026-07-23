@@ -77,6 +77,12 @@ export function SecurityScan() {
     mutationFn: (id: number) => api.del(`/security/scans/${id}`),
     onSuccess: (_r, id) => { qc.invalidateQueries({ queryKey: ['scans'] }); if (openId === id) setOpenId(null) },
   })
+  const rerun = useMutation({
+    mutationFn: (v: { target: string; profile: string }) =>
+      api.post<{ scan_id: number }>('/security/scans', { target: v.target, profile: v.profile, confirm: true }),
+    onSuccess: (r) => { setMsg(''); setOpenId(r.scan_id); qc.invalidateQueries({ queryKey: ['scans'] }) },
+    onError: (e) => setMsg((e as Error).message),
+  })
 
   function exportScan(d: ScanDetail) {
     const esc = (s?: string) => (s || '').replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch] || ch))
@@ -252,6 +258,14 @@ export function SecurityScan() {
                   <td>
                     <div className="row" style={{ gap: 6 }}>
                       <button style={{ padding: '3px 10px', fontSize: 11 }} onClick={() => setOpenId(s.id)}>Ver</button>
+                      <button
+                        style={{ padding: '3px 8px', fontSize: 11 }}
+                        title="Repetir scan (mesmo alvo/perfil)"
+                        disabled={!c.enabled || rerun.isPending}
+                        onClick={() => { if (window.confirm(`Repetir o scan de "${s.target}" (perfil ${s.profile})?`)) rerun.mutate({ target: s.target, profile: s.profile }) }}
+                      >
+                        <Icon name="refresh" size={13} />
+                      </button>
                       <button
                         style={{ padding: '3px 8px', fontSize: 11 }}
                         title="Excluir scan"

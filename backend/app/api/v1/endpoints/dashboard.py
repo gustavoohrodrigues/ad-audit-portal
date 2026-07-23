@@ -32,7 +32,17 @@ async def _count(session: AsyncSession, stmt) -> int:
 async def summary(
     session: AsyncSession = Depends(get_session),
     user: CurrentUser = Depends(require_capability("dashboard:read")),
-) -> DashboardSummary:
+) -> dict:
+    # Cacheado (dados globais do AD, iguais para todos): reduz muito a carga de
+    # DB do endpoint mais consultado (polling de ~30s por usuário).
+    from app.core.cache import get_or_set
+    return await get_or_set(
+        "dashboard", "summary", get_settings().cache_dashboard_ttl_seconds,
+        lambda: _summary_impl(session),
+    )
+
+
+async def _summary_impl(session: AsyncSession) -> dict:
     now = _utcnow()
     d1, d7, d30 = now - timedelta(days=1), now - timedelta(days=7), now - timedelta(days=30)
 
@@ -176,7 +186,7 @@ async def summary(
         top_source_computers=top_sources,
         top_domain_controllers=top_dcs,
         failed_logons_by_hour=fbh,
-    )
+    ).model_dump(mode="json")
 
 
 @router.get("/security-score")
@@ -310,6 +320,14 @@ async def trends(
 ) -> dict:
     """Séries diárias (para sparklines) das métricas-chave nos últimos N dias."""
     days = max(2, min(90, days))
+    from app.core.cache import get_or_set
+    return await get_or_set(
+        "dashboard", f"trends:{days}", get_settings().cache_dashboard_ttl_seconds,
+        lambda: _trends_impl(session, days),
+    )
+
+
+async def _trends_impl(session: AsyncSession, days: int) -> dict:
     rows = (await session.execute(
         text(
             """

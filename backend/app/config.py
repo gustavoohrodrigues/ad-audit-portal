@@ -211,6 +211,7 @@ class Settings(BaseSettings):
     scan_include_known_dcs: bool = True       # permite varrer DCs do inventário
     scan_nmap_timeout_seconds: int = 300
     scan_max_concurrent: int = 1
+    scan_alerts_enabled: bool = True      # achados do scan viram alertas (sino)
     google_chat_enabled: bool = True
     message_winrm_enabled: bool = False
     message_winrm_allowed_hosts: str = ""
