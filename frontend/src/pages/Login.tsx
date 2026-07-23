@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { ParticleField } from '@/components/ParticleField'
+import { triggerBoot } from '@/lib/boot'
 
 const TAGLINES = [
   'Auditoria e postura de identidades em tempo real.',
@@ -36,7 +37,7 @@ export function Login() {
     try {
       const res = await login(username, password)
       if (res.mfaRequired && res.mfaToken) setMfaToken(res.mfaToken)
-      else nav('/', { replace: true })
+      else { triggerBoot(); nav('/', { replace: true }) }
     } catch (err) {
       setError((err as Error).message || 'Falha na autenticação')
     } finally { setBusy(false) }
@@ -47,7 +48,7 @@ export function Login() {
     setError(''); setBusy(true)
     try {
       await loginMfa(mfaToken!, code)
-      nav('/', { replace: true })
+      triggerBoot(); nav('/', { replace: true })
     } catch (err) {
       setError((err as Error).message || 'Código inválido')
     } finally { setBusy(false) }

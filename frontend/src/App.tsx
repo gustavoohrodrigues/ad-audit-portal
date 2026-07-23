@@ -3,6 +3,7 @@ import { lazy, Suspense, ReactNode } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Layout } from '@/components/Layout'
 import { Loading } from '@/components/ui'
+import { BootSequence } from '@/components/BootSequence'
 import { Login } from '@/pages/Login'
 
 // Rotas carregadas sob demanda (code-splitting): reduz o JS inicial e adia o
@@ -43,6 +44,8 @@ function Protected({ children }: { children: ReactNode }) {
 
 export function App() {
   return (
+    <>
+    <BootSequence />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
@@ -67,5 +70,6 @@ export function App() {
       <Route path="/capacity" element={<Protected><Capacity /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
