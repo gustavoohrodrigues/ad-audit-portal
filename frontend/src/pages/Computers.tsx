@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { api } from '@/lib/api'
 import { fmtDate } from '@/lib/format'
 import { Badge, Card, Loading } from '@/components/ui'
+import { useThemeColors } from '@/hooks/useAccent'
 
 interface Computer {
   sam_account_name: string; dns_host_name?: string; operating_system?: string
@@ -16,6 +17,7 @@ interface ComputerList {
 const LEGACY = /windows (7|8|xp|vista|server 2003|server 2008)/i
 
 export function Computers() {
+  const { accent } = useThemeColors()
   const [q, setQ] = useState('')
   const [term, setTerm] = useState('')
   const [selectedOs, setSelectedOs] = useState<string | null>(null)
@@ -63,7 +65,7 @@ export function Computers() {
               <Bar dataKey="count" radius={[0, 4, 4, 0]} cursor="pointer"
                 onClick={(d) => { const p = d as unknown as { fullOs: string }; setSelectedOs(p.fullOs); setTerm(''); setQ('') }}>
                 {chart.map((c, i) => (
-                  <Cell key={i} fill={selectedOs === c.fullOs ? '#fff' : c.legacy ? '#ff7a2d' : '#ff2d43'} />
+                  <Cell key={i} fill={selectedOs === c.fullOs ? '#fff' : c.legacy ? '#ff7a2d' : accent} />
                 ))}
               </Bar>
             </BarChart>

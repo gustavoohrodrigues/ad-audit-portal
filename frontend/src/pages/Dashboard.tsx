@@ -15,6 +15,8 @@ import { api } from '@/lib/api'
 import { fmtTime } from '@/lib/format'
 import { Badge, Card, Loading, StatusDot } from '@/components/ui'
 import { AnimatedNumber, ScoreGauge } from '@/components/widgets'
+import { Icon } from '@/components/icons'
+import { useThemeColors } from '@/hooks/useAccent'
 import type {
   DashboardSummary,
   DomainControllerHealth,
@@ -23,16 +25,33 @@ import type {
   SecurityScore,
 } from '@/types'
 
-function HotKpi({ label, value, tone }: { label: string; value: number; tone?: string }) {
+const TONE_COLOR: Record<string, string> = {
+  critical: 'var(--critical)', high: 'var(--high)', medium: 'var(--medium)', low: 'var(--low)',
+}
+
+function HotKpi({ label, value, tone, icon }: { label: string; value: number; tone?: string; icon?: string }) {
+  const c = tone ? TONE_COLOR[tone] : 'var(--accent-2)'
   return (
-    <div className="card kpi-hot">
-      <div className={`kpi-value ${tone || ''}`}><AnimatedNumber value={value} /></div>
-      <div className="kpi-label">{label}</div>
+    <div className="card kpi-hot" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {icon && (
+        <div style={{
+          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+          display: 'grid', placeItems: 'center', color: c,
+          background: 'var(--bg-3)', border: '1px solid var(--border)',
+        }}>
+          <Icon name={icon} size={19} />
+        </div>
+      )}
+      <div style={{ minWidth: 0 }}>
+        <div className={`kpi-value ${tone || ''}`}><AnimatedNumber value={value} /></div>
+        <div className="kpi-label">{label}</div>
+      </div>
     </div>
   )
 }
 
 export function Dashboard() {
+  const { accent } = useThemeColors()
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
@@ -101,7 +120,7 @@ export function Dashboard() {
                     <LineChart data={history.data.series}>
                       <YAxis domain={[0, 100]} hide />
                       <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border-bright)', borderRadius: 8, fontSize: 11 }} labelFormatter={(l) => `Dia ${l}`} />
-                      <Line type="monotone" dataKey="score" stroke="#ff2d43" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="score" stroke={accent} strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -114,14 +133,14 @@ export function Dashboard() {
         </Card>
 
         <div className="grid kpi-row" style={{ alignContent: 'start' }}>
-          <HotKpi label="Bloqueios (24h)" value={data.lockouts_24h} tone={data.lockouts_24h > 10 ? 'critical' : ''} />
-          <HotKpi label="Falhas de auth (24h)" value={data.failed_logons_24h} tone={data.failed_logons_24h > 50 ? 'high' : ''} />
-          <HotKpi label="Alertas críticos" value={data.critical_alerts_open} tone="critical" />
-          <HotKpi label="Contas privilegiadas" value={data.privileged_accounts} tone="high" />
-          <HotKpi label="Senha nunca expira" value={data.never_expire_accounts} tone="medium" />
-          <HotKpi label="Contas inativas" value={data.inactive_accounts} tone="medium" />
-          <HotKpi label="Eventos senha (24h)" value={data.password_events_24h} />
-          <HotKpi label="Grupos priv. (24h)" value={data.privileged_group_changes_24h} tone={data.privileged_group_changes_24h > 0 ? 'critical' : ''} />
+          <HotKpi label="Bloqueios (24h)" value={data.lockouts_24h} tone={data.lockouts_24h > 10 ? 'critical' : ''} icon="lock" />
+          <HotKpi label="Falhas de auth (24h)" value={data.failed_logons_24h} tone={data.failed_logons_24h > 50 ? 'high' : ''} icon="alert" />
+          <HotKpi label="Alertas críticos" value={data.critical_alerts_open} tone="critical" icon="bell" />
+          <HotKpi label="Contas privilegiadas" value={data.privileged_accounts} tone="high" icon="star" />
+          <HotKpi label="Senha nunca expira" value={data.never_expire_accounts} tone="medium" icon="lock" />
+          <HotKpi label="Contas inativas" value={data.inactive_accounts} tone="medium" icon="users" />
+          <HotKpi label="Eventos senha (24h)" value={data.password_events_24h} icon="list" />
+          <HotKpi label="Grupos priv. (24h)" value={data.privileged_group_changes_24h} tone={data.privileged_group_changes_24h > 0 ? 'critical' : ''} icon="groups" />
         </div>
       </div>
 
@@ -132,15 +151,15 @@ export function Dashboard() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ff2d43" stopOpacity={0.6} />
-                  <stop offset="100%" stopColor="#ff2d43" stopOpacity={0} />
+                  <stop offset="0%" stopColor={accent} stopOpacity={0.6} />
+                  <stop offset="100%" stopColor={accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--grid)" vertical={false} />
               <XAxis dataKey="h" stroke="var(--text-2)" fontSize={11} />
               <YAxis stroke="var(--text-2)" fontSize={11} allowDecimals={false} />
               <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border-bright)', borderRadius: 8 }} />
-              <Area type="monotone" dataKey="count" stroke="#ff2d43" fill="url(#gRed)" strokeWidth={2.5} />
+              <Area type="monotone" dataKey="count" stroke={accent} fill="url(#gRed)" strokeWidth={2.5} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>

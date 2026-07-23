@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
+import { Icon } from '@/components/icons'
 import { useAuth } from '@/hooks/useAuth'
+import { THEMES, getTheme, applyTheme } from '@/lib/theme'
 
 interface MfaStatus { enabled: boolean; configured: boolean }
 interface MfaSetup { secret: string; otpauth_uri: string; qr_data_uri: string }
@@ -16,6 +18,8 @@ export function Account() {
   const [backup, setBackup] = useState<string[] | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [theme, setThemeState] = useState(getTheme())
+  const pickTheme = (id: string) => { applyTheme(id); setThemeState(id) }
 
   async function startSetup() {
     setError(''); setBusy(true)
@@ -131,6 +135,47 @@ export function Account() {
           </>
         )}
       </Card>
+
+      {/* Aparência / Tema */}
+      <div style={{ marginTop: 16 }}>
+        <Card title="Aparência — Tema da interface">
+          <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
+            Escolha a cor de destaque da interface. A troca é imediata e a preferência
+            fica salva neste navegador.
+          </p>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+            {THEMES.map((t) => {
+              const active = theme === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => pickTheme(t.id)}
+                  className="card"
+                  style={{
+                    textAlign: 'left', cursor: 'pointer', display: 'flex', gap: 11,
+                    alignItems: 'center', padding: '12px 14px',
+                    borderColor: active ? t.accent : undefined,
+                    boxShadow: active ? `0 0 0 2px ${t.accent}55` : undefined,
+                  }}
+                >
+                  <span style={{
+                    width: 28, height: 28, borderRadius: 9, flexShrink: 0,
+                    background: `linear-gradient(135deg, ${t.accent}, ${t.accent}88)`,
+                    boxShadow: `0 0 12px ${t.accent}99`,
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {t.label}
+                      {active && <Icon name="check" size={14} />}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11 }}>{t.hint}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
     </>
   )
 }

@@ -4,6 +4,7 @@
    Contraste acessível (texto claro sobre fundo escuro).
    ================================================== */
 :root {
+  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(255,45,67,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(176,13,34,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(255,94,46,0.07), transparent 60%);
   --bg-0: #070406;
   --bg-1: #0e0709;
   --bg-2: #160a0e;
@@ -36,6 +37,69 @@
   --radius: 10px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --mono: 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
+  --focus-ring: rgba(255, 45, 67, 0.15);
+}
+
+/* ==================================================================
+   TEMAS — trocam a identidade de cor (data-theme no <html>).
+   As cores semânticas de severidade (--critical/--high/--medium/--low)
+   permanecem para o significado de risco não mudar entre temas.
+   ================================================================== */
+:root[data-theme="blue"] {
+  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(47,128,237,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(22,87,192,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(99,164,255,0.06), transparent 60%);
+  --bg-0: #04070d; --bg-1: #070c15; --bg-2: #0b1322; --bg-3: #0f1c31;
+  --border: #16283f; --border-bright: #244a76;
+  --text-0: #eaf1fb; --text-1: #9fb4d0; --text-2: #647a97;
+  --accent: #2f80ed; --accent-2: #63a4ff; --accent-deep: #1657c0; --accent-dim: #0a1a33;
+  --glow: rgba(47, 128, 237, 0.55);
+  --grad-red: linear-gradient(135deg, #2f80ed 0%, #1657c0 55%, #0a2f6b 100%);
+  --grad-red-soft: linear-gradient(135deg, rgba(47,128,237,0.18), rgba(10,47,107,0.05));
+  --grad-ember: linear-gradient(120deg, #63a4ff, #2f80ed 50%, #1657c0);
+  --grid: rgba(90, 150, 255, 0.08);
+  --shadow-glow: 0 0 24px rgba(47, 128, 237, 0.18);
+  --focus-ring: rgba(47, 128, 237, 0.18);
+}
+:root[data-theme="emerald"] {
+  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(4,120,87,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(52,217,163,0.06), transparent 60%);
+  --bg-0: #030806; --bg-1: #06100c; --bg-2: #091912; --bg-3: #0d271c;
+  --border: #123528; --border-bright: #1d5c43;
+  --text-0: #e9f6ef; --text-1: #9dc7b3; --text-2: #5f8672;
+  --accent: #10b981; --accent-2: #34d9a3; --accent-deep: #047857; --accent-dim: #05221a;
+  --glow: rgba(16, 185, 129, 0.5);
+  --grad-red: linear-gradient(135deg, #10b981 0%, #047857 55%, #023d2c 100%);
+  --grad-red-soft: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(2,61,44,0.05));
+  --grad-ember: linear-gradient(120deg, #34d9a3, #10b981 50%, #047857);
+  --grid: rgba(52, 217, 163, 0.08);
+  --shadow-glow: 0 0 24px rgba(16, 185, 129, 0.18);
+  --focus-ring: rgba(16, 185, 129, 0.18);
+}
+:root[data-theme="violet"] {
+  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(139,92,246,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(109,40,217,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(169,132,255,0.06), transparent 60%);
+  --bg-0: #06040d; --bg-1: #0b0715; --bg-2: #120b22; --bg-3: #1a0f31;
+  --border: #241640; --border-bright: #3d2470;
+  --text-0: #f0eafb; --text-1: #b7a4d4; --text-2: #7a6497;
+  --accent: #8b5cf6; --accent-2: #a984ff; --accent-deep: #6d28d9; --accent-dim: #17092e;
+  --glow: rgba(139, 92, 246, 0.5);
+  --grad-red: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 55%, #3b0f80 100%);
+  --grad-red-soft: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(59,15,128,0.05));
+  --grad-ember: linear-gradient(120deg, #a984ff, #8b5cf6 50%, #6d28d9);
+  --grid: rgba(169, 132, 255, 0.08);
+  --shadow-glow: 0 0 24px rgba(139, 92, 246, 0.18);
+  --focus-ring: rgba(139, 92, 246, 0.18);
+}
+:root[data-theme="amber"] {
+  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(245,158,11,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(180,83,9,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(255,191,71,0.06), transparent 60%);
+  --bg-0: #0a0703; --bg-1: #130d05; --bg-2: #1f1608; --bg-3: #2e210c;
+  --border: #3d2c12; --border-bright: #6a4d1d;
+  --text-0: #fbf3e5; --text-1: #d0b892; --text-2: #97815f;
+  --accent: #f59e0b; --accent-2: #ffbf47; --accent-deep: #b45309; --accent-dim: #2a1c05;
+  --glow: rgba(245, 158, 11, 0.5);
+  --grad-red: linear-gradient(135deg, #f59e0b 0%, #b45309 55%, #6b3405 100%);
+  --grad-red-soft: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(107,52,5,0.05));
+  --grad-ember: linear-gradient(120deg, #ffbf47, #f59e0b 50%, #b45309);
+  --grid: rgba(255, 191, 71, 0.08);
+  --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.18);
+  --focus-ring: rgba(245, 158, 11, 0.18);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,10 +123,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(45% 40% at 15% 10%, rgba(255, 45, 67, 0.10), transparent 60%),
-    radial-gradient(40% 45% at 85% 20%, rgba(176, 13, 34, 0.12), transparent 60%),
-    radial-gradient(50% 50% at 70% 90%, rgba(255, 94, 46, 0.07), transparent 60%);
+  background: var(--ambient);
   animation: drift 22s ease-in-out infinite alternate;
 }
 
@@ -78,7 +139,7 @@ body::before {
 }
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 0 0 var(--glow); }
-  50%      { box-shadow: 0 0 0 6px rgba(255, 45, 67, 0); }
+  50%      { box-shadow: 0 0 0 6px transparent; }
 }
 @keyframes shimmer {
   0% { background-position: 0% 50%; }
@@ -127,7 +188,7 @@ input, select {
   width: 100%;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,45,67,0.15); }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
 
 /* Layout */
 .app-shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; transition: grid-template-columns 0.2s ease; }
