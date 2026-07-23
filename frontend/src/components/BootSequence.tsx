@@ -40,12 +40,24 @@ export function BootSequence() {
 
   return (
     <div className={`boot-overlay ${closing ? 'closing' : ''}`} role="status" aria-live="polite">
-      <div className="boot-grid" />
+      <div className="boot-floor" />
       <div className="boot-scan" />
       <div className="boot-core">
+        {/* Núcleo 3D: giroscópio de anéis + cubo wireframe */}
+        <div className="boot-scene">
+          <div className="boot-gyro">
+            <span className="boot-r r1" />
+            <span className="boot-r r2" />
+            <span className="boot-r r3" />
+            <div className="boot-cube">
+              <span className="cf cf-front" /><span className="cf cf-back" />
+              <span className="cf cf-right" /><span className="cf cf-left" />
+              <span className="cf cf-top" /><span className="cf cf-bottom" />
+            </div>
+          </div>
+        </div>
         <div className="boot-logo">AD<span>·</span>AUDIT</div>
         <div className="boot-sub">Inicializando ambiente seguro</div>
-        <div className="boot-ring" />
         <ul className="boot-steps">
           {STEPS.map((s, i) => (
             <li key={s} className={i < step ? 'done' : i === step ? 'active' : ''}>

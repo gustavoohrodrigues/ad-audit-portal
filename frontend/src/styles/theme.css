@@ -59,49 +59,6 @@
   --shadow-glow: 0 0 24px rgba(47, 128, 237, 0.18);
   --focus-ring: rgba(47, 128, 237, 0.18);
 }
-:root[data-theme="emerald"] {
-  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(4,120,87,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(52,217,163,0.06), transparent 60%);
-  --bg-0: #030806; --bg-1: #06100c; --bg-2: #091912; --bg-3: #0d271c;
-  --border: #123528; --border-bright: #1d5c43;
-  --text-0: #e9f6ef; --text-1: #9dc7b3; --text-2: #5f8672;
-  --accent: #10b981; --accent-2: #34d9a3; --accent-deep: #047857; --accent-dim: #05221a;
-  --glow: rgba(16, 185, 129, 0.5);
-  --grad-red: linear-gradient(135deg, #10b981 0%, #047857 55%, #023d2c 100%);
-  --grad-red-soft: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(2,61,44,0.05));
-  --grad-ember: linear-gradient(120deg, #34d9a3, #10b981 50%, #047857);
-  --grid: rgba(52, 217, 163, 0.08);
-  --shadow-glow: 0 0 24px rgba(16, 185, 129, 0.18);
-  --focus-ring: rgba(16, 185, 129, 0.18);
-}
-:root[data-theme="violet"] {
-  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(139,92,246,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(109,40,217,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(169,132,255,0.06), transparent 60%);
-  --bg-0: #06040d; --bg-1: #0b0715; --bg-2: #120b22; --bg-3: #1a0f31;
-  --border: #241640; --border-bright: #3d2470;
-  --text-0: #f0eafb; --text-1: #b7a4d4; --text-2: #7a6497;
-  --accent: #8b5cf6; --accent-2: #a984ff; --accent-deep: #6d28d9; --accent-dim: #17092e;
-  --glow: rgba(139, 92, 246, 0.5);
-  --grad-red: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 55%, #3b0f80 100%);
-  --grad-red-soft: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(59,15,128,0.05));
-  --grad-ember: linear-gradient(120deg, #a984ff, #8b5cf6 50%, #6d28d9);
-  --grid: rgba(169, 132, 255, 0.08);
-  --shadow-glow: 0 0 24px rgba(139, 92, 246, 0.18);
-  --focus-ring: rgba(139, 92, 246, 0.18);
-}
-:root[data-theme="amber"] {
-  --ambient: radial-gradient(45% 40% at 15% 10%, rgba(245,158,11,0.10), transparent 60%), radial-gradient(40% 45% at 85% 20%, rgba(180,83,9,0.12), transparent 60%), radial-gradient(50% 50% at 70% 90%, rgba(255,191,71,0.06), transparent 60%);
-  --bg-0: #0a0703; --bg-1: #130d05; --bg-2: #1f1608; --bg-3: #2e210c;
-  --border: #3d2c12; --border-bright: #6a4d1d;
-  --text-0: #fbf3e5; --text-1: #d0b892; --text-2: #97815f;
-  --accent: #f59e0b; --accent-2: #ffbf47; --accent-deep: #b45309; --accent-dim: #2a1c05;
-  --glow: rgba(245, 158, 11, 0.5);
-  --grad-red: linear-gradient(135deg, #f59e0b 0%, #b45309 55%, #6b3405 100%);
-  --grad-red-soft: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(107,52,5,0.05));
-  --grad-ember: linear-gradient(120deg, #ffbf47, #f59e0b 50%, #b45309);
-  --grid: rgba(255, 191, 71, 0.08);
-  --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.18);
-  --focus-ring: rgba(245, 158, 11, 0.18);
-}
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
@@ -515,38 +472,70 @@ tr:hover td { background: var(--bg-2); }
 }
 
 /* ==================================================================
-   BOOT SEQUENCE — animação tech pós-login (segue o tema via --accent)
+   BOOT SEQUENCE 3D — animação tech pós-login (segue o tema via --accent)
    ================================================================== */
 .boot-overlay {
   position: fixed; inset: 0; z-index: 9999; overflow: hidden;
-  display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 38%, var(--bg-1), var(--bg-0) 72%);
-  animation: boot-in 0.35s ease both;
+  display: grid; place-items: center; perspective: 1000px;
+  background: radial-gradient(circle at 50% 40%, var(--bg-1), var(--bg-0) 74%);
+  animation: boot-in 0.4s ease both;
 }
-.boot-overlay.closing { animation: boot-out 0.5s ease both; }
+.boot-overlay.closing { animation: boot-out 0.55s ease both; }
 @keyframes boot-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes boot-out { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
 
-.boot-grid {
-  position: absolute; inset: -50%;
+/* Piso em perspectiva estilo "Tron", correndo em direção ao observador */
+.boot-floor {
+  position: absolute; left: -50%; right: -50%; bottom: -10%; height: 70%;
   background-image:
-    linear-gradient(var(--border-bright) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-bright) 1px, transparent 1px);
-  background-size: 44px 44px; opacity: 0.22;
-  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 18%, transparent 62%);
-  mask-image: radial-gradient(circle at 50% 45%, #000 18%, transparent 62%);
-  animation: boot-grid 7s linear infinite;
+    linear-gradient(var(--accent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--accent) 1px, transparent 1px);
+  background-size: 46px 46px; opacity: 0.16;
+  transform: perspective(420px) rotateX(70deg);
+  transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(transparent, #000 55%);
+  mask-image: linear-gradient(transparent, #000 55%);
+  animation: boot-floor 1.7s linear infinite;
 }
-@keyframes boot-grid { to { transform: translateY(44px); } }
+@keyframes boot-floor { from { background-position: 0 0; } to { background-position: 0 46px; } }
 
 .boot-scan {
-  position: absolute; left: 0; right: 0; height: 200px; top: -200px;
+  position: absolute; left: 0; right: 0; height: 220px; top: -220px;
   background: linear-gradient(180deg, transparent, var(--glow), transparent);
-  opacity: 0.45; animation: boot-scan 2.1s ease-in-out infinite;
+  opacity: 0.4; animation: boot-scan 2.1s ease-in-out infinite;
 }
-@keyframes boot-scan { 0% { top: -200px; } 100% { top: 100%; } }
+@keyframes boot-scan { 0% { top: -220px; } 100% { top: 100%; } }
 
-.boot-core { position: relative; text-align: center; width: 380px; max-width: 88vw; animation: fade-up 0.5s ease both; }
+.boot-core { position: relative; text-align: center; width: 400px; max-width: 90vw; animation: fade-up 0.6s ease both; }
+
+/* Cena 3D central */
+.boot-scene { height: 150px; display: grid; place-items: center; perspective: 700px; margin-bottom: 6px; }
+.boot-gyro { position: relative; width: 120px; height: 120px; transform-style: preserve-3d; animation: gyro-tilt 6s ease-in-out infinite; }
+@keyframes gyro-tilt { 0%,100% { transform: rotateX(-18deg) rotateY(0deg); } 50% { transform: rotateX(18deg) rotateY(180deg); } }
+
+.boot-r {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid var(--accent); box-shadow: 0 0 14px var(--glow);
+  transform-style: preserve-3d;
+}
+.boot-r.r1 { animation: spin-x 2.4s linear infinite; border-color: var(--accent); opacity: 0.9; }
+.boot-r.r2 { animation: spin-y 2s linear infinite reverse; border-color: var(--accent-2); inset: 12px; opacity: 0.75; }
+.boot-r.r3 { animation: spin-z 3s linear infinite; border-color: var(--accent-deep); inset: 24px; opacity: 0.6; }
+@keyframes spin-x { to { transform: rotateX(360deg); } }
+@keyframes spin-y { to { transform: rotateY(360deg); } }
+@keyframes spin-z { to { transform: rotateZ(360deg) rotateY(45deg); } }
+
+/* Cubo wireframe girando dentro dos anéis */
+.boot-cube { position: absolute; inset: 42px; transform-style: preserve-3d; animation: cube-spin 4.5s linear infinite; }
+@keyframes cube-spin { from { transform: rotateX(0) rotateY(0); } to { transform: rotateX(360deg) rotateY(360deg); } }
+.cf { position: absolute; width: 36px; height: 36px; border: 1.5px solid var(--accent-2); background: var(--grad-red-soft); box-shadow: inset 0 0 12px var(--glow); }
+.cf-front  { transform: translateZ(18px); }
+.cf-back   { transform: rotateY(180deg) translateZ(18px); }
+.cf-right  { transform: rotateY(90deg) translateZ(18px); }
+.cf-left   { transform: rotateY(-90deg) translateZ(18px); }
+.cf-top    { transform: rotateX(90deg) translateZ(18px); }
+.cf-bottom { transform: rotateX(-90deg) translateZ(18px); }
+
 .boot-logo {
   font-size: 36px; font-weight: 800; letter-spacing: 7px;
   background: linear-gradient(90deg, var(--accent-2), #fff, var(--accent));
@@ -554,18 +543,9 @@ tr:hover td { background: var(--bg-2); }
   -webkit-text-fill-color: transparent; animation: shimmer 3s linear infinite;
 }
 .boot-logo span { -webkit-text-fill-color: var(--accent); }
-.boot-sub {
-  color: var(--text-2); font-size: 11px; letter-spacing: 3px;
-  text-transform: uppercase; margin-top: 8px;
-}
-.boot-ring {
-  width: 52px; height: 52px; margin: 24px auto 20px; border-radius: 50%;
-  border: 3px solid var(--border-bright); border-top-color: var(--accent);
-  box-shadow: 0 0 20px var(--glow); animation: boot-spin 0.85s linear infinite;
-}
-@keyframes boot-spin { to { transform: rotate(360deg); } }
+.boot-sub { color: var(--text-2); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-top: 8px; }
 
-.boot-steps { list-style: none; text-align: left; margin: 0 auto 20px; max-width: 320px; }
+.boot-steps { list-style: none; text-align: left; margin: 20px auto; max-width: 320px; }
 .boot-steps li {
   display: flex; gap: 10px; align-items: center; padding: 5px 0;
   font-family: var(--mono); font-size: 12.5px; color: var(--text-2);
@@ -579,3 +559,7 @@ tr:hover td { background: var(--bg-2); }
 .boot-bar { height: 5px; border-radius: 5px; background: var(--bg-3); overflow: hidden; border: 1px solid var(--border); }
 .boot-bar-fill { height: 100%; background: var(--grad-red); box-shadow: 0 0 14px var(--glow); transition: width 0.35s cubic-bezier(.3,.9,.3,1); }
 .boot-pct { margin-top: 9px; font-family: var(--mono); font-size: 11px; color: var(--text-2); letter-spacing: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-gyro, .boot-cube, .boot-r, .boot-floor, .boot-scan, .boot-logo { animation-duration: 0.001s; animation-iteration-count: 1; }
+}
