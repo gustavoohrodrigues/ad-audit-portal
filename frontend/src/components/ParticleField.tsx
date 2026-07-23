@@ -1,7 +1,19 @@
 import { useEffect, useRef } from 'react'
+import { THEME_EVENT } from '@/lib/theme'
+
+// Lê uma CSS var e converte hex -> "r, g, b" para uso em rgba() no canvas.
+function cssVar(name: string, fb: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fb
+}
+function hexToRgb(hex: string): string {
+  const m = hex.replace('#', '')
+  const v = m.length === 3 ? m.split('').map((x) => x + x).join('') : m
+  const n = parseInt(v, 16)
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
+}
 
 /**
- * Rede de partículas (constellation) em canvas — identidade "Crimson Ops".
+ * Rede de partículas (constellation) em canvas — segue a cor do tema atual.
  * Leve, sem dependências, respeita prefers-reduced-motion.
  */
 export function ParticleField() {
@@ -54,6 +66,15 @@ export function ParticleField() {
 
     const LINK = 130
 
+    // Cores derivadas do tema (reavaliadas ao trocar de tema).
+    let linkRgb = hexToRgb(cssVar('--accent', '#ff2d43'))
+    let dotRgb = hexToRgb(cssVar('--accent-2', '#ff5e6e'))
+    const onTheme = () => {
+      linkRgb = hexToRgb(cssVar('--accent', '#ff2d43'))
+      dotRgb = hexToRgb(cssVar('--accent-2', '#ff5e6e'))
+    }
+    window.addEventListener(THEME_EVENT, onTheme)
+
     function draw() {
       c.clearRect(0, 0, width, height)
       for (const n of nodes) {
@@ -72,7 +93,7 @@ export function ParticleField() {
           const b = nodes[j]
           const d = Math.hypot(a.x - b.x, a.y - b.y)
           if (d < LINK) {
-            c.strokeStyle = `rgba(255, 45, 67, ${(1 - d / LINK) * 0.5})`
+            c.strokeStyle = `rgba(${linkRgb}, ${(1 - d / LINK) * 0.5})`
             c.lineWidth = 1
             c.beginPath()
             c.moveTo(a.x, a.y)
@@ -82,7 +103,7 @@ export function ParticleField() {
         }
       }
       for (const n of nodes) {
-        c.fillStyle = 'rgba(255, 94, 110, 0.85)'
+        c.fillStyle = `rgba(${dotRgb}, 0.85)`
         c.beginPath()
         c.arc(n.x, n.y, n.r, 0, Math.PI * 2)
         c.fill()
@@ -94,6 +115,7 @@ export function ParticleField() {
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
+      window.removeEventListener(THEME_EVENT, onTheme)
       parent.removeEventListener('mousemove', onMove)
       parent.removeEventListener('mouseleave', onLeave)
     }

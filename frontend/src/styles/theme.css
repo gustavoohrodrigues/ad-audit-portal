@@ -127,9 +127,9 @@ button.primary {
   border: none;
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(176, 13, 34, 0.4);
+  box-shadow: 0 4px 16px var(--shadow-glow);
 }
-button.primary:hover { filter: brightness(1.1); box-shadow: 0 6px 22px rgba(255, 45, 67, 0.5); }
+button.primary:hover { filter: brightness(1.1); box-shadow: 0 6px 24px var(--glow); }
 button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
 button.btn-icon, .btn-icon { display: inline-flex; align-items: center; gap: 7px; }
 button.btn-icon svg { flex-shrink: 0; }
@@ -363,7 +363,7 @@ tr:hover td { background: var(--bg-2); }
     radial-gradient(circle at 80% 75%, rgba(176,13,34,0.14), transparent 45%),
     var(--bg-0);
 }
-.login-card { width: 370px; border-color: var(--border-bright); box-shadow: 0 10px 50px rgba(176,13,34,0.25); }
+.login-card { width: 370px; border-color: var(--border-bright); box-shadow: 0 10px 50px var(--focus-ring); }
 .login-card h1 { font-size: 20px; margin-bottom: 4px; }
 .login-card .brand-sub { margin-bottom: 22px; }
 
@@ -371,18 +371,15 @@ tr:hover td { background: var(--bg-2); }
 .login-split { display: grid; grid-template-columns: 1.15fr 1fr; min-height: 100vh; }
 .login-hero {
   position: relative; overflow: hidden;
-  background:
-    radial-gradient(70% 60% at 20% 0%, rgba(255,45,67,0.18), transparent 60%),
-    radial-gradient(60% 60% at 90% 100%, rgba(176,13,34,0.2), transparent 60%),
-    linear-gradient(160deg, #0b0507, #050203);
+  background: var(--ambient), linear-gradient(160deg, var(--bg-1), var(--bg-0));
   display: flex; flex-direction: column; justify-content: space-between;
   padding: 48px 52px;
 }
 .login-hero::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(255,45,67,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,45,67,0.05) 1px, transparent 1px);
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: radial-gradient(80% 80% at 40% 30%, #000 30%, transparent 75%);
   animation: gridpan 30s linear infinite;
@@ -412,11 +409,11 @@ tr:hover td { background: var(--bg-2); }
 .login-form-side { display: flex; align-items: center; justify-content: center; padding: 32px; background: var(--bg-0); }
 .glass-card {
   width: 380px; max-width: 100%;
-  background: linear-gradient(180deg, rgba(22,10,14,0.85), rgba(10,5,7,0.9));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-2) 88%, transparent), color-mix(in srgb, var(--bg-0) 92%, transparent));
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-bright);
   border-radius: 16px; padding: 34px 30px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,45,67,0.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px var(--focus-ring);
   animation: fade-up 0.5s ease both;
 }
 .glass-card h1 { font-size: 20px; font-weight: 700; }

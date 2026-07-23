@@ -89,6 +89,8 @@ export function Reports() {
     if (!preview.data) return
     const d = preview.data
     const cols = d.columns
+    // Cor do relatório segue o tema selecionado (Dante/Vergil).
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-deep').trim() || '#b00d22'
     const summaryHtml = d.summary
       ? `<div class="summary">${Object.entries(d.summary).map(([k, v]) =>
           `<div class="kpi"><div class="v">${v ?? '—'}</div><div class="l">${k.replace(/_/g, ' ')}</div></div>`).join('')}</div>`
@@ -98,12 +100,12 @@ export function Reports() {
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${d.title}</title>
       <style>
         *{box-sizing:border-box} body{font-family:Segoe UI,system-ui,sans-serif;color:#1a1a1a;margin:0;padding:32px;background:#fff}
-        .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #b00d22;padding-bottom:12px;margin-bottom:18px}
-        .hd h1{margin:0;font-size:22px;color:#0a0a0a} .hd .brand{font-weight:800;color:#b00d22;letter-spacing:1px}
+        .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid ${accent};padding-bottom:12px;margin-bottom:18px}
+        .hd h1{margin:0;font-size:22px;color:#0a0a0a} .hd .brand{font-weight:800;color:${accent};letter-spacing:1px}
         .meta{color:#666;font-size:12px}
         .summary{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 20px}
         .kpi{border:1px solid #e2e2e2;border-radius:8px;padding:10px 16px;min-width:120px}
-        .kpi .v{font-size:24px;font-weight:800;color:#b00d22} .kpi .l{font-size:11px;color:#666;text-transform:capitalize}
+        .kpi .v{font-size:24px;font-weight:800;color:${accent}} .kpi .l{font-size:11px;color:#666;text-transform:capitalize}
         table{width:100%;border-collapse:collapse;font-size:12px}
         th{background:#f4f4f4;text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
         td{padding:7px 10px;border-bottom:1px solid #eee}
@@ -111,7 +113,7 @@ export function Reports() {
         .ft{margin-top:20px;color:#999;font-size:10px;border-top:1px solid #eee;padding-top:8px}
         @media print{body{padding:12px}.noprint{display:none}}
         .noprint{margin-bottom:16px}
-        .btn{background:#b00d22;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px}
+        .btn{background:${accent};color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px}
       </style></head><body>
       <div class="noprint"><button class="btn" onclick="window.print()">Imprimir / Salvar PDF</button></div>
       <div class="hd"><div><div class="brand">AD·AUDIT</div><h1>${d.title}</h1></div>

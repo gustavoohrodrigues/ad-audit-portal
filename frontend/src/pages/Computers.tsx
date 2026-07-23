@@ -61,7 +61,7 @@ export function Computers() {
               <CartesianGrid stroke="var(--grid)" horizontal={false} />
               <XAxis type="number" stroke="var(--text-2)" fontSize={11} allowDecimals={false} />
               <YAxis type="category" dataKey="os" stroke="var(--text-2)" fontSize={11} width={90} />
-              <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border-bright)', borderRadius: 8 }} cursor={{ fill: 'rgba(255,45,67,0.08)' }} />
+              <Tooltip contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border-bright)', borderRadius: 8 }} cursor={{ fill: `${accent}14` }} />
               <Bar dataKey="count" radius={[0, 4, 4, 0]} cursor="pointer"
                 onClick={(d) => { const p = d as unknown as { fullOs: string }; setSelectedOs(p.fullOs); setTerm(''); setQ('') }}>
                 {chart.map((c, i) => (

@@ -2,10 +2,10 @@
 // As cores reais vivem em CSS (styles/theme.css, blocos [data-theme="..."]).
 export interface ThemeDef { id: string; label: string; accent: string; hint: string }
 
-// Dois temas, referência a Devil May Cry: Dante (vermelho) e Vergil (azul).
+// Dois temas com referências (nomes = temas dos irmãos; descrições = citações).
 export const THEMES: ThemeDef[] = [
-  { id: 'crimson', label: 'Dante', accent: '#ff2d43', hint: 'Vermelho rebelde — “Jackpot!” (Devil May Cry)' },
-  { id: 'blue', label: 'Vergil', accent: '#2f80ed', hint: 'Azul frio e cortante — “I need more power.” (Devil May Cry)' },
+  { id: 'crimson', label: 'Devils Never Cry', accent: '#ff2d43', hint: 'Vermelho carmesim — o caçador rebelde. “Jackpot!”' },
+  { id: 'blue', label: 'Bury the Light', accent: '#2f80ed', hint: 'Azul cortante — poder frio e ambição. “I need more power.”' },
 ]
 
 const KEY = 'ad-theme'

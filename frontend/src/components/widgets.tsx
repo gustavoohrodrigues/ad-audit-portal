@@ -60,12 +60,12 @@ export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
         <defs>
           <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor={color} />
-            <stop offset="100%" stopColor="#b00d22" />
+            <stop offset="100%" stopColor={color} stopOpacity={0.65} />
           </linearGradient>
         </defs>
         {/* trilha */}
         <circle
-          cx={cx} cy={cy} r={r} fill="none" stroke="#1f0d13" strokeWidth={stroke}
+          cx={cx} cy={cy} r={r} fill="none" style={{ stroke: 'var(--bg-3)' }} strokeWidth={stroke}
           strokeLinecap="round" strokeDasharray={`${arcLen} ${circumference}`}
           transform={`rotate(135 ${cx} ${cy})`}
         />
@@ -79,7 +79,7 @@ export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
         <text x={cx} y={cy - 2} textAnchor="middle" fontSize="42" fontWeight="800" fill={color}>
           {Math.round(score * progress)}
         </text>
-        <text x={cx} y={cy + 22} textAnchor="middle" fontSize="12" fill="#8a6068" letterSpacing="2">
+        <text x={cx} y={cy + 22} textAnchor="middle" fontSize="12" style={{ fill: 'var(--text-2)' }} letterSpacing="2">
           / 100
         </text>
       </svg>
