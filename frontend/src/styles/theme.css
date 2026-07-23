@@ -635,3 +635,10 @@ tr:hover td { background: var(--bg-2); }
 
 @media (max-width: 860px) { .faq-shell { grid-template-columns: 1fr; } .faq-list { position: static; flex-direction: row; flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { .faq-orbit, .faq-core, .faq-stage::before { animation: none; } }
+
+/* FAQ — wrapper que recebe o tilt do mouse + barra de progresso do tour */
+.faq-3d { position: relative; transform-style: preserve-3d; transition: transform 0.18s ease-out; display: grid; place-items: center; will-change: transform; }
+.faq-stage { cursor: grab; }
+.faq-progress { height: 3px; background: var(--bg-3); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+.faq-progress > i { display: block; height: 100%; background: var(--grad-red); box-shadow: 0 0 8px var(--glow); }
+@keyframes faq-prog { from { width: 0; } to { width: 100%; } }

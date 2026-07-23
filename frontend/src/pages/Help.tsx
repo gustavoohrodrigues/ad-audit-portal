@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui'
 import { Icon, IconName } from '@/components/icons'
+
+const TOUR_MS = 5200
 
 interface Mod {
   id: string
@@ -126,7 +129,35 @@ const MODULES: Mod[] = [
 
 export function Help() {
   const [active, setActive] = useState(MODULES[0].id)
+  const [tour, setTour] = useState(false)
+  const sceneRef = useRef<HTMLDivElement>(null)
   const m = MODULES.find((x) => x.id === active) || MODULES[0]
+
+  // Tour guiado: avança automaticamente pelos módulos, em loop.
+  useEffect(() => {
+    if (!tour) return
+    const t = setInterval(() => {
+      setActive((cur) => {
+        const i = MODULES.findIndex((x) => x.id === cur)
+        return MODULES[(i + 1) % MODULES.length].id
+      })
+    }, TOUR_MS)
+    return () => clearInterval(t)
+  }, [tour])
+
+  // Parallax/tilt reagindo ao mouse (via ref, sem re-render).
+  function onMove(e: MouseEvent<HTMLDivElement>) {
+    const el = sceneRef.current
+    if (!el) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    el.style.transform = `rotateX(${(-y * 22).toFixed(1)}deg) rotateY(${(x * 30).toFixed(1)}deg)`
+  }
+  function onLeave() {
+    if (sceneRef.current) sceneRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)'
+  }
+  function pick(id: string) { setTour(false); setActive(id) }
 
   return (
     <>
@@ -135,15 +166,18 @@ export function Help() {
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
             <h1>Central de <span className="accent-text">Ajuda</span> & Tour</h1>
-            <div className="page-sub" style={{ marginTop: 4 }}>Escolha um módulo → veja a explicação animada → vá direto para ele</div>
+            <div className="page-sub" style={{ marginTop: 4 }}>Escolha um módulo → explicação animada 3D → vá direto para ele · mova o mouse na cena</div>
           </div>
+          <button className="btn-icon" onClick={() => setTour((v) => !v)} title="Percorre os módulos automaticamente">
+            <Icon name={tour ? 'pause' : 'play'} size={15} /> {tour ? 'Pausar tour' : 'Tour guiado'}
+          </button>
         </div>
       </div>
 
       <div className="faq-shell">
         <div className="faq-list">
           {MODULES.map((mod) => (
-            <button key={mod.id} className={`faq-tab ${mod.id === active ? 'active' : ''}`} onClick={() => setActive(mod.id)}>
+            <button key={mod.id} className={`faq-tab ${mod.id === active ? 'active' : ''}`} onClick={() => pick(mod.id)}>
               <Icon name={mod.icon} size={18} />
               <span>{mod.title}</span>
             </button>
@@ -153,13 +187,18 @@ export function Help() {
         <Card>
           {/* key força reinício das animações ao trocar de módulo */}
           <div className="faq-panel" key={m.id}>
-            <div className="faq-stage">
-              <div className="faq-orbit">
-                {m.sats.map((s, i) => (
-                  <span key={i} className={`faq-sat s${i}`}><Icon name={s} size={20} /></span>
-                ))}
+            {tour && (
+              <div className="faq-progress"><i style={{ animation: `faq-prog ${TOUR_MS}ms linear` }} /></div>
+            )}
+            <div className="faq-stage" onMouseMove={onMove} onMouseLeave={onLeave}>
+              <div className="faq-3d" ref={sceneRef}>
+                <div className="faq-orbit">
+                  {m.sats.map((s, i) => (
+                    <span key={i} className={`faq-sat s${i}`}><Icon name={s} size={20} /></span>
+                  ))}
+                </div>
+                <div className="faq-core"><Icon name={m.icon} size={44} /></div>
               </div>
-              <div className="faq-core"><Icon name={m.icon} size={44} /></div>
             </div>
 
             <div className="faq-title">{m.title}</div>
