@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     dashboard,
     detections,
     events,
+    findings,
     groups,
     health,
     inventory,
@@ -49,3 +50,4 @@ api_router.include_router(admin.router)
 api_router.include_router(capacity.router)
 api_router.include_router(maintenance.router)
 api_router.include_router(security.router)
+api_router.include_router(findings.router)

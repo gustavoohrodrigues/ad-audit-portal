@@ -31,6 +31,7 @@ from app.models.analytics import (
     WatchlistItem,
 )
 from app.models.security import SecurityScan, UserMFA
+from app.models.findings import FindingIngestion, SecurityFinding
 
 __all__ = [
     "ADComputer",

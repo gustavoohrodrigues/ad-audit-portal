@@ -22,6 +22,14 @@ const NAV: NavGroup[] = [
     { to: '/attack-surface', label: 'Superfície de Ataque', icon: 'target', cap: 'critical:read' },
     { to: '/security-scan', label: 'Scan de Segurança', icon: 'target', cap: 'critical:read' },
   ] },
+  { title: 'Security Ops', items: [
+    { to: '/security/overview', label: 'Visão Geral', icon: 'dashboard', cap: 'critical:read' },
+    { to: '/security/findings', label: 'Todos os Achados', icon: 'list', cap: 'critical:read' },
+    { to: '/security/findings?category=vulnerability', label: 'Vulnerabilidades', icon: 'alert', cap: 'critical:read' },
+    { to: '/security/findings?asset_type=image', label: 'Contêineres', icon: 'capacity', cap: 'critical:read' },
+    { to: '/security/findings?category=secret', label: 'Segredos', icon: 'lock', cap: 'critical:read' },
+    { to: '/security/findings?category=misconfiguration', label: 'Misconfigurações', icon: 'settings', cap: 'critical:read' },
+  ] },
   { title: 'Inventário', items: [
     { to: '/search', label: 'Usuários', icon: 'users', cap: 'user:read_basic' },
     { to: '/groups', label: 'Grupos', icon: 'groups', cap: 'user:read_basic' },

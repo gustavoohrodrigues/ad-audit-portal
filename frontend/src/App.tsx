@@ -31,6 +31,8 @@ const Capacity = lazy(() => import('@/pages/Capacity').then(m => ({ default: m.C
 const MessageCenter = lazy(() => import('@/pages/MessageCenter').then(m => ({ default: m.MessageCenter })))
 const CollectionPoints = lazy(() => import('@/pages/CollectionPoints').then(m => ({ default: m.CollectionPoints })))
 const SecurityScan = lazy(() => import('@/pages/SecurityScan').then(m => ({ default: m.SecurityScan })))
+const SecurityOverview = lazy(() => import('@/pages/SecurityOverview').then(m => ({ default: m.SecurityOverview })))
+const Findings = lazy(() => import('@/pages/Findings').then(m => ({ default: m.Findings })))
 
 function Protected({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth()
@@ -72,6 +74,8 @@ export function App() {
       <Route path="/capacity" element={<Protected><Capacity /></Protected>} />
       <Route path="/collection-points" element={<Protected><CollectionPoints /></Protected>} />
       <Route path="/security-scan" element={<Protected><SecurityScan /></Protected>} />
+      <Route path="/security/overview" element={<Protected><SecurityOverview /></Protected>} />
+      <Route path="/security/findings" element={<Protected><Findings /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>
