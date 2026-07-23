@@ -30,7 +30,7 @@ from app.models.analytics import (
     Watchlist,
     WatchlistItem,
 )
-from app.models.security import UserMFA
+from app.models.security import SecurityScan, UserMFA
 
 __all__ = [
     "ADComputer",

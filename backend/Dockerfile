@@ -22,6 +22,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
+# nmap para o módulo de scan de segurança (usado só quando SCAN_ENABLED=true;
+# TCP connect scan roda como não-root, sem necessidade de CAP_NET_RAW).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nmap \
+    && rm -rf /var/lib/apt/lists/*
+
 # usuário sem privilégios
 RUN groupadd -r app && useradd -r -g app -u 10001 app
 

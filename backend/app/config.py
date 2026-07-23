@@ -202,6 +202,15 @@ class Settings(BaseSettings):
     # Domínio de e-mail forçado para destinatários da central de mensagens.
     notification_email_domain: str = "astra-sa.com"
     broadcast_max_recipients: int = 1000
+
+    # ---- Scan de segurança (nmap) — ação ativa FORA do AD ----
+    # Desabilitado por padrão; exige RBAC + confirmação + auditoria e SÓ varre
+    # alvos na allowlist (CIDR/IP/hostname) ou DCs conhecidos.
+    scan_enabled: bool = False
+    scan_allowed_targets: str = ""            # CSV de CIDRs/IPs/hostnames
+    scan_include_known_dcs: bool = True       # permite varrer DCs do inventário
+    scan_nmap_timeout_seconds: int = 300
+    scan_max_concurrent: int = 1
     google_chat_enabled: bool = True
     message_winrm_enabled: bool = False
     message_winrm_allowed_hosts: str = ""

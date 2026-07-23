@@ -20,6 +20,7 @@ const NAV: NavGroup[] = [
   { title: 'Segurança', items: [
     { to: '/posture', label: 'Postura', icon: 'posture', cap: 'dashboard:read' },
     { to: '/attack-surface', label: 'Superfície de Ataque', icon: 'target', cap: 'critical:read' },
+    { to: '/security-scan', label: 'Scan de Segurança', icon: 'target', cap: 'critical:read' },
   ] },
   { title: 'Inventário', items: [
     { to: '/search', label: 'Usuários', icon: 'users', cap: 'user:read_basic' },

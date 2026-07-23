@@ -21,6 +21,7 @@ from app.api.v1.endpoints import (
     notifications,
     reports,
     search,
+    security,
     users,
     watchlists,
 )
@@ -47,3 +48,4 @@ api_router.include_router(reports.router)
 api_router.include_router(admin.router)
 api_router.include_router(capacity.router)
 api_router.include_router(maintenance.router)
+api_router.include_router(security.router)
