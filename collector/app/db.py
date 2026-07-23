@@ -67,16 +67,21 @@ _CHECKPOINT_UPSERT = text(
     """
 )
 
+# Upsert: cria a fonte na primeira execução e acumula estatísticas depois, para
+# que a tela "Pontos de Coleta" reflita o coletor real (não só o seed de demo).
 _SOURCE_STATS = text(
     """
-    UPDATE event_sources
-    SET events_ingested = events_ingested + :n,
-        errors_count = errors_count + :err,
-        last_event_at = :last_event,
-        last_heartbeat_at = :hb,
-        status = :status,
-        updated_at = :hb
-    WHERE name = :name
+    INSERT INTO event_sources (name, connector_type, enabled, status,
+        last_event_at, last_heartbeat_at, events_ingested, errors_count, updated_at)
+    VALUES (:name, :ctype, true, :status, :last_event, :hb, :n, :err, :hb)
+    ON CONFLICT (name) DO UPDATE SET
+        events_ingested = event_sources.events_ingested + EXCLUDED.events_ingested,
+        errors_count = event_sources.errors_count + EXCLUDED.errors_count,
+        last_event_at = COALESCE(EXCLUDED.last_event_at, event_sources.last_event_at),
+        last_heartbeat_at = EXCLUDED.last_heartbeat_at,
+        status = EXCLUDED.status,
+        connector_type = EXCLUDED.connector_type,
+        updated_at = EXCLUDED.updated_at
     """
 )
 
@@ -143,6 +148,7 @@ async def update_source_stats(
             _SOURCE_STATS,
             {
                 "name": name,
+                "ctype": config.mode,
                 "n": n,
                 "err": errors,
                 "last_event": last_event,

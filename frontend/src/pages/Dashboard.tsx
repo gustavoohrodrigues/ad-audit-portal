@@ -16,7 +16,33 @@ import { fmtTime } from '@/lib/format'
 import { Badge, Card, Loading, StatusDot } from '@/components/ui'
 import { AnimatedNumber, ScoreGauge } from '@/components/widgets'
 import { Icon } from '@/components/icons'
+import { Sparkline } from '@/components/Sparkline'
 import { useThemeColors } from '@/hooks/useAccent'
+
+interface Trends { days: number; labels: string[]; series: Record<string, number[]> }
+
+function SparkTile({ label, series, color }: { label: string; series: number[]; color: string }) {
+  const cur = series.length ? series[series.length - 1] : 0
+  const prev = series.length > 1 ? series[series.length - 2] : 0
+  const delta = cur - prev
+  const total = series.reduce((s, n) => s + n, 0)
+  return (
+    <div className="card" style={{ padding: 14 }}>
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div className="kpi-label" style={{ marginBottom: 2 }}>{label}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{cur.toLocaleString('pt-BR')}</div>
+        </div>
+        <span className="spacer" />
+        <span className="mono" style={{ fontSize: 11, color: delta > 0 ? 'var(--high)' : delta < 0 ? 'var(--low)' : 'var(--text-2)' }}>
+          {delta > 0 ? '▲' : delta < 0 ? '▼' : '■'} {Math.abs(delta)}
+        </span>
+      </div>
+      <div style={{ marginTop: 8 }}><Sparkline data={series} color={color} width={240} height={36} /></div>
+      <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{total.toLocaleString('pt-BR')} no período · hoje vs. ontem</div>
+    </div>
+  )
+}
 import type {
   DashboardSummary,
   DomainControllerHealth,
@@ -75,6 +101,11 @@ export function Dashboard() {
   const history = useQuery({
     queryKey: ['score-history'],
     queryFn: () => api.get<{ series: ScorePoint[] }>('/dashboard/security-score/history?days=90'),
+  })
+  const trends = useQuery({
+    queryKey: ['dash-trends'],
+    queryFn: () => api.get<Trends>('/dashboard/trends?days=14'),
+    refetchInterval: 60000,
   })
 
   if (isLoading || !data) return <Loading />
@@ -143,6 +174,19 @@ export function Dashboard() {
           <HotKpi label="Grupos priv. (24h)" value={data.privileged_group_changes_24h} tone={data.privileged_group_changes_24h > 0 ? 'critical' : ''} icon="groups" />
         </div>
       </div>
+
+      {/* Tendências (sparklines 14 dias) */}
+      {trends.data && (
+        <div style={{ marginTop: 16 }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>Tendências · últimos {trends.data.days} dias</div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <SparkTile label="Bloqueios" series={trends.data.series.lockouts} color="#ef4444" />
+            <SparkTile label="Falhas de autenticação" series={trends.data.series.failed_logons} color="#f97316" />
+            <SparkTile label="Eventos de senha" series={trends.data.series.password_events} color={accent} />
+            <SparkTile label="Mudanças em grupos" series={trends.data.series.group_changes} color="#eab308" />
+          </div>
+        </div>
+      )}
 
       {/* Gráfico + risco */}
       <div className="grid" style={{ gridTemplateColumns: '2fr 1fr', marginTop: 16 }}>

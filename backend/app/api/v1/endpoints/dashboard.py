@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -299,6 +299,53 @@ async def risk_events(
             }
             for e in rows
         ]
+    }
+
+
+@router.get("/trends")
+async def trends(
+    days: int = 14,
+    session: AsyncSession = Depends(get_session),
+    user: CurrentUser = Depends(require_capability("dashboard:read")),
+) -> dict:
+    """Séries diárias (para sparklines) das métricas-chave nos últimos N dias."""
+    days = max(2, min(90, days))
+    rows = (await session.execute(
+        text(
+            """
+            SELECT (event_time_utc)::date AS d, event_type::text AS t, count(*) AS n
+            FROM normalized_events
+            WHERE event_time_utc > (now() AT TIME ZONE 'UTC') - make_interval(days => :days)
+              AND event_type::text IN (
+                'account_lockout','failed_logon','kerberos_preauth_failed','ntlm_validation',
+                'password_change','password_reset','group_member_added','group_member_removed')
+            GROUP BY 1, 2
+            """
+        ),
+        {"days": days},
+    )).all()
+
+    # pivô por dia -> métricas agregadas
+    by_day: dict[str, dict[str, int]] = {}
+    for d, t, n in rows:
+        key = d.isoformat()
+        by_day.setdefault(key, {})[t] = int(n)
+
+    today = datetime.now(timezone.utc).date()
+    labels = [(today - timedelta(days=days - 1 - i)).isoformat() for i in range(days)]
+
+    def series(*types: str) -> list[int]:
+        return [sum(by_day.get(day, {}).get(t, 0) for t in types) for day in labels]
+
+    return {
+        "days": days,
+        "labels": labels,
+        "series": {
+            "lockouts": series("account_lockout"),
+            "failed_logons": series("failed_logon", "kerberos_preauth_failed", "ntlm_validation"),
+            "password_events": series("password_change", "password_reset"),
+            "group_changes": series("group_member_added", "group_member_removed"),
+        },
     }
 
 

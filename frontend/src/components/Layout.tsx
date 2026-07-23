@@ -34,6 +34,7 @@ const NAV: NavGroup[] = [
   { title: 'Sistema', items: [
     { to: '/reports', label: 'Relatórios', icon: 'report', cap: 'report:export' },
     { to: '/integrations', label: 'Integrações', icon: 'integrations', cap: 'dashboard:read' },
+    { to: '/collection-points', label: 'Pontos de Coleta', icon: 'capacity', cap: 'dashboard:read' },
     { to: '/capacity', label: 'Capacidade', icon: 'capacity', cap: 'critical:read' },
     { to: '/admin', label: 'Admin', icon: 'settings', cap: 'critical:read' },
   ] },
