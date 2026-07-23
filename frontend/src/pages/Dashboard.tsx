@@ -18,6 +18,7 @@ import { AnimatedNumber, ScoreGauge } from '@/components/widgets'
 import { Icon } from '@/components/icons'
 import { Sparkline } from '@/components/Sparkline'
 import { useThemeColors } from '@/hooks/useAccent'
+import { exportReport, REPORT_SEV } from '@/lib/dashboardReport'
 
 interface Trends { days: number; labels: string[]; series: Record<string, number[]> }
 
@@ -113,6 +114,34 @@ export function Dashboard() {
   const chartData = data.failed_logons_by_hour.map((b) => ({ h: fmtTime(b.ts).slice(0, 5), count: b.count }))
   const now = new Date().toLocaleTimeString('pt-BR')
 
+  function handleExport() {
+    if (!data) return
+    const cats = (inv.data?.categories || [])
+      .filter((c) => c.count > 0 && c.key !== 'disabled')
+      .map((c) => ({ label: c.label, value: c.count, color: REPORT_SEV[c.severity] || '#38bdf8' }))
+    const t = trends.data
+    exportReport({
+      title: 'Relatório de Operações — Dashboard',
+      subtitle: 'Centro de Operações de Identidade do AD',
+      score: score.data ? { score: score.data.score, grade: score.data.grade } : undefined,
+      kpis: [
+        { label: 'Bloqueios (24h)', value: data.lockouts_24h },
+        { label: 'Falhas de auth (24h)', value: data.failed_logons_24h },
+        { label: 'Alertas críticos', value: data.critical_alerts_open },
+        { label: 'Contas privilegiadas', value: data.privileged_accounts },
+        { label: 'Senha nunca expira', value: data.never_expire_accounts },
+        { label: 'Contas inativas', value: data.inactive_accounts },
+      ],
+      categories: cats,
+      trends: t ? [
+        { label: 'Bloqueios', data: t.series.lockouts, color: '#ef4444' },
+        { label: 'Falhas de autenticação', data: t.series.failed_logons, color: '#f97316' },
+        { label: 'Eventos de senha', data: t.series.password_events, color: accent },
+        { label: 'Mudanças em grupos', data: t.series.group_changes, color: '#eab308' },
+      ] : [],
+    })
+  }
+
   return (
     <>
       {/* HERO */}
@@ -125,7 +154,10 @@ export function Dashboard() {
               Monitoramento contínuo do Active Directory · atualizado {now}
             </div>
           </div>
-          <span className="live-dot">Ao vivo</span>
+          <div className="row" style={{ gap: 10 }}>
+            <button className="btn-icon" onClick={handleExport}><Icon name="download" size={14} /> Exportar PDF</button>
+            <span className="live-dot">Ao vivo</span>
+          </div>
         </div>
       </div>
 

@@ -5,6 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { api } from '@/lib/api'
 import { Badge, Card, Loading } from '@/components/ui'
 import { ScoreGauge } from '@/components/widgets'
+import { Icon } from '@/components/icons'
+import { exportReport, REPORT_SEV } from '@/lib/dashboardReport'
 import type { ADUser, SecurityScore } from '@/types'
 
 interface Category { key: string; label: string; count: number; severity: string }
@@ -67,6 +69,15 @@ export function SecurityPosture() {
               {d.total_accounts} contas sincronizadas · clique numa categoria para investigar
             </div>
           </div>
+          <button className="btn-icon" onClick={() => exportReport({
+            title: 'Relatório de Postura de Segurança',
+            subtitle: `${d.total_accounts} contas sincronizadas`,
+            score: score.data ? { score: score.data.score, grade: score.data.grade } : undefined,
+            categories: d.categories.filter((c) => c.count > 0 && c.key !== 'disabled').map((c) => ({ label: c.label, value: c.count, color: REPORT_SEV[c.severity] || '#38bdf8' })),
+            factors: score.data?.factors,
+          })}>
+            <Icon name="download" size={14} /> Exportar PDF
+          </button>
         </div>
       </div>
 
